@@ -1,36 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
+  Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { CourseDetailModal } from "@/components/course-detail-modal";
+import { DayView } from "@/components/day-view";
+import { ListView } from "@/components/list-view";
+import { NextCourseCard } from "@/components/next-course-card";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { WeekView } from "@/components/week-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
+import { getMondayOfWeek, getTodayParisDateString } from "@/lib/dates";
 import { Course } from "@/lib/ics";
 
-function formatCourseDateTime(start: number, end: number) {
-  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const timeFmt = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const s = new Date(start);
-  const e = new Date(end);
-  return `${dateFmt.format(s)} • ${timeFmt.format(s)} - ${timeFmt.format(e)}`;
-}
+type ViewMode = "day" | "week" | "list";
 
 function formatLastSync(lastSync: number | null): string {
   if (!lastSync) return "--:--";
@@ -47,39 +39,29 @@ export default function HomeScreen() {
   const { courses, lastSync, isSyncing, error, isStale, refresh } =
     useSchedule();
 
-  const renderItem = ({ item }: { item: Course }) => {
-    const roomText = item.room ?? "salle non communiquée";
-    const timeText = formatCourseDateTime(item.start, item.end);
+  const todayStr = getTodayParisDateString();
+  const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const [selectedMonday, setSelectedMonday] = useState<string>(
+    getMondayOfWeek(todayStr)
+  );
+  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
 
-    return (
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <View style={styles.cardHeader}>
-          <ThemedText type="smallBold" style={styles.timeText}>
-            {timeText}
-          </ThemedText>
-        </View>
+  const handleSelectCourse = (course: Course) => {
+    setActiveCourse(course);
+  };
 
-        <ThemedText type="default" style={styles.titleText}>
-          {item.title}
-        </ThemedText>
-
-        <View style={styles.cardFooter}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Salle : {roomText}
-          </ThemedText>
-        </View>
-      </ThemedView>
-    );
+  const handleGoToDay = (dateStr: string) => {
+    setSelectedDate(dateStr);
+    setViewMode("day");
   };
 
   return (
     <ThemedView style={styles.screen}>
-      <FlatList
-        data={courses}
-        keyExtractor={(item) => item.key}
-        renderItem={renderItem}
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[
-          styles.listContent,
+          styles.content,
           {
             paddingTop: insets.top + Spacing.two,
             paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
@@ -92,57 +74,150 @@ export default function HomeScreen() {
             tintColor={theme.text}
           />
         }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <ThemedText type="title">Emploi du temps</ThemedText>
+      >
+        {/* En-tête principal */}
+        <View style={styles.header}>
+          <ThemedText type="title">Emploi du temps</ThemedText>
 
-            <View style={styles.metaRow}>
+          <View style={styles.metaRow}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {isSyncing
+                ? "Synchronisation en cours..."
+                : `Dernière synchro : ${formatLastSync(lastSync)}`}
+            </ThemedText>
+            {courses.length > 0 && (
               <ThemedText type="small" themeColor="textSecondary">
-                {isSyncing
-                  ? "Synchronisation en cours..."
-                  : `Dernière synchro : ${formatLastSync(lastSync)}`}
+                {courses.length} cours
               </ThemedText>
-              {courses.length > 0 && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {courses.length} cours
-                </ThemedText>
-              )}
-            </View>
-
-            {isStale && (
-              <View style={styles.staleBanner}>
-                <ThemedText type="smallBold" style={styles.staleText}>
-                  Données anciennes (&gt; 24h)
-                </ThemedText>
-              </View>
-            )}
-
-            {error && (
-              <View style={styles.errorBanner}>
-                <ThemedText type="small" style={styles.errorText}>
-                  Réseau indisponible ({error}). Dernier flux valide conservé.
-                </ThemedText>
-              </View>
             )}
           </View>
-        }
-        ListEmptyComponent={
-          !isSyncing ? (
-            <View style={styles.emptyContainer}>
-              <ThemedText type="default">Aucun cours trouvé</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                Tirez vers le bas pour rafraîchir le calendrier.
+
+          {isStale && (
+            <View style={styles.staleBanner}>
+              <ThemedText type="smallBold" style={styles.staleText}>
+                Données anciennes (&gt; 24h)
               </ThemedText>
             </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <ActivityIndicator size="small" color={theme.text} />
-              <ThemedText type="small" themeColor="textSecondary">
-                Chargement des cours...
+          )}
+
+          {error && (
+            <View style={styles.errorBanner}>
+              <ThemedText type="small" style={styles.errorText}>
+                Réseau indisponible ({error}). Dernier flux valide conservé.
               </ThemedText>
             </View>
-          )
-        }
+          )}
+        </View>
+
+        {/* Carte Prochain cours avec compte à rebours */}
+        {courses.length > 0 && (
+          <NextCourseCard
+            courses={courses}
+            onSelectCourse={handleSelectCourse}
+          />
+        )}
+
+        {/* Sélecteur de vue : Jour | Semaine | Liste */}
+        <ThemedView type="backgroundElement" style={styles.viewSwitcher}>
+          <Pressable
+            onPress={() => setViewMode("day")}
+            style={[
+              styles.switcherTab,
+              viewMode === "day" && [
+                styles.activeSwitcherTab,
+                { backgroundColor: theme.backgroundSelected },
+              ],
+            ]}
+          >
+            <ThemedText
+              type="smallBold"
+              themeColor={viewMode === "day" ? "text" : "textSecondary"}
+            >
+              Jour
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setViewMode("week")}
+            style={[
+              styles.switcherTab,
+              viewMode === "week" && [
+                styles.activeSwitcherTab,
+                { backgroundColor: theme.backgroundSelected },
+              ],
+            ]}
+          >
+            <ThemedText
+              type="smallBold"
+              themeColor={viewMode === "week" ? "text" : "textSecondary"}
+            >
+              Semaine
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setViewMode("list")}
+            style={[
+              styles.switcherTab,
+              viewMode === "list" && [
+                styles.activeSwitcherTab,
+                { backgroundColor: theme.backgroundSelected },
+              ],
+            ]}
+          >
+            <ThemedText
+              type="smallBold"
+              themeColor={viewMode === "list" ? "text" : "textSecondary"}
+            >
+              Liste
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+
+        {/* Contenu selon la vue active */}
+        {courses.length === 0 && isSyncing ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={theme.text} />
+            <ThemedText type="small" themeColor="textSecondary">
+              Chargement des cours...
+            </ThemedText>
+          </View>
+        ) : (
+          <>
+            {viewMode === "day" && (
+              <DayView
+                courses={courses}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onSelectCourse={handleSelectCourse}
+              />
+            )}
+
+            {viewMode === "week" && (
+              <WeekView
+                courses={courses}
+                currentMonday={selectedMonday}
+                onSelectMonday={setSelectedMonday}
+                onSelectCourse={handleSelectCourse}
+                onGoToDay={handleGoToDay}
+              />
+            )}
+
+            {viewMode === "list" && (
+              <ListView
+                courses={courses}
+                onSelectCourse={handleSelectCourse}
+              />
+            )}
+          </>
+        )}
+      </ScrollView>
+
+      {/* Modal Détail du cours */}
+      <CourseDetailModal
+        course={activeCourse}
+        visible={activeCourse !== null}
+        onClose={() => setActiveCourse(null)}
       />
     </ThemedView>
   );
@@ -152,7 +227,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  listContent: {
+  scrollView: {
+    flex: 1,
+  },
+  content: {
     maxWidth: MaxContentWidth,
     width: "100%",
     alignSelf: "center",
@@ -160,7 +238,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   header: {
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.two,
     gap: Spacing.two,
   },
   metaRow: {
@@ -190,26 +268,27 @@ const styles = StyleSheet.create({
   errorText: {
     color: "#DC2626",
   },
-  card: {
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.one,
-  },
-  cardHeader: {
+  viewSwitcher: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    borderRadius: Spacing.two,
+    padding: 3,
+    marginBottom: Spacing.two,
   },
-  timeText: {
-    opacity: 0.85,
+  switcherTab: {
+    flex: 1,
+    paddingVertical: Spacing.one * 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: Spacing.two - 2,
   },
-  titleText: {
-    fontSize: 16,
-    lineHeight: 22,
+  activeSwitcherTab: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  cardFooter: {
-    marginTop: Spacing.one,
-  },
-  emptyContainer: {
+  loadingContainer: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: Spacing.six,
