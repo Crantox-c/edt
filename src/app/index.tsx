@@ -9,14 +9,18 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ActiveFilterPills } from "@/components/active-filter-pills";
 import { CourseDetailModal } from "@/components/course-detail-modal";
 import { DayView } from "@/components/day-view";
+import { FilterModal } from "@/components/filter-modal";
 import { ListView } from "@/components/list-view";
 import { NextCourseCard } from "@/components/next-course-card";
+import { SearchBar } from "@/components/search-bar";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { WeekView } from "@/components/week-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { useFilters } from "@/hooks/use-filters";
 import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
 import { getMondayOfWeek, getTodayParisDateString } from "@/lib/dates";
@@ -39,6 +43,17 @@ export default function HomeScreen() {
   const { courses, lastSync, isSyncing, error, isStale, refresh } =
     useSchedule();
 
+  const {
+    criteria,
+    availableFilters,
+    filteredCourses,
+    activeFilterCount,
+    setSearchQuery,
+    updateCriteria,
+    toggleHiddenSubject,
+    resetFilters,
+  } = useFilters(courses);
+
   const todayStr = getTodayParisDateString();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -46,6 +61,7 @@ export default function HomeScreen() {
     getMondayOfWeek(todayStr)
   );
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   const handleSelectCourse = (course: Course) => {
     setActiveCourse(course);
@@ -55,6 +71,8 @@ export default function HomeScreen() {
     setSelectedDate(dateStr);
     setViewMode("day");
   };
+
+  const isFiltering = activeFilterCount > 0 || criteria.searchQuery.trim().length > 0;
 
   return (
     <ThemedView style={styles.screen}>
@@ -87,7 +105,9 @@ export default function HomeScreen() {
             </ThemedText>
             {courses.length > 0 && (
               <ThemedText type="small" themeColor="textSecondary">
-                {courses.length} cours
+                {isFiltering
+                  ? `${filteredCourses.length} / ${courses.length} cours`
+                  : `${courses.length} cours`}
               </ThemedText>
             )}
           </View>
@@ -109,10 +129,31 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Barre de recherche et bouton filtres */}
+        <SearchBar
+          value={criteria.searchQuery}
+          onChangeText={setSearchQuery}
+          activeFilterCount={activeFilterCount}
+          onOpenFilters={() => setIsFilterModalOpen(true)}
+        />
+
+        {/* Badges des filtres actifs */}
+        <ActiveFilterPills
+          criteria={criteria}
+          onClearPromo={() => updateCriteria({ selectedPromo: null })}
+          onClearKind={() => updateCriteria({ selectedKind: null })}
+          onClearSubject={() => updateCriteria({ selectedSubject: null })}
+          onClearTag={() => updateCriteria({ selectedTag: null })}
+          onClearRoom={() => updateCriteria({ selectedRoom: null })}
+          onClearFloor={() => updateCriteria({ selectedFloor: null })}
+          onClearHiddenSubjects={() => updateCriteria({ hiddenSubjects: [] })}
+          onClearAll={resetFilters}
+        />
+
         {/* Carte Prochain cours avec compte à rebours */}
-        {courses.length > 0 && (
+        {filteredCourses.length > 0 && (
           <NextCourseCard
-            courses={courses}
+            courses={filteredCourses}
             onSelectCourse={handleSelectCourse}
           />
         )}
@@ -182,11 +223,26 @@ export default function HomeScreen() {
               Chargement des cours...
             </ThemedText>
           </View>
+        ) : filteredCourses.length === 0 && isFiltering ? (
+          <ThemedView type="backgroundElement" style={styles.noFilterResultsCard}>
+            <ThemedText type="default" style={styles.noResultsTitle}>
+              Aucun cours ne correspond aux filtres
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Essayez de modifier votre recherche ou de réinitialiser vos critères.
+            </ThemedText>
+            <Pressable
+              onPress={resetFilters}
+              style={[styles.resetFilterBtn, { backgroundColor: theme.backgroundSelected }]}
+            >
+              <ThemedText type="smallBold">Réinitialiser les filtres</ThemedText>
+            </Pressable>
+          </ThemedView>
         ) : (
           <>
             {viewMode === "day" && (
               <DayView
-                courses={courses}
+                courses={filteredCourses}
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
                 onSelectCourse={handleSelectCourse}
@@ -195,7 +251,7 @@ export default function HomeScreen() {
 
             {viewMode === "week" && (
               <WeekView
-                courses={courses}
+                courses={filteredCourses}
                 currentMonday={selectedMonday}
                 onSelectMonday={setSelectedMonday}
                 onSelectCourse={handleSelectCourse}
@@ -205,7 +261,7 @@ export default function HomeScreen() {
 
             {viewMode === "list" && (
               <ListView
-                courses={courses}
+                courses={filteredCourses}
                 onSelectCourse={handleSelectCourse}
               />
             )}
@@ -218,6 +274,17 @@ export default function HomeScreen() {
         course={activeCourse}
         visible={activeCourse !== null}
         onClose={() => setActiveCourse(null)}
+      />
+
+      {/* Modal des Filtres */}
+      <FilterModal
+        visible={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        criteria={criteria}
+        availableFilters={availableFilters}
+        onUpdateCriteria={updateCriteria}
+        onToggleHiddenSubject={toggleHiddenSubject}
+        onResetFilters={resetFilters}
       />
     </ThemedView>
   );
@@ -293,5 +360,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: Spacing.six,
     gap: Spacing.two,
+  },
+  noFilterResultsCard: {
+    borderRadius: Spacing.three,
+    padding: Spacing.five,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    marginVertical: Spacing.three,
+  },
+  noResultsTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  resetFilterBtn: {
+    marginTop: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
   },
 });
