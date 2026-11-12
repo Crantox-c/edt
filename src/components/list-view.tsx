@@ -12,9 +12,10 @@ import { CourseCard } from "./course-card";
 export type ListViewProps = {
   courses: Course[];
   onSelectCourse: (course: Course) => void;
+  modifiedKeys?: Set<string>;
 };
 
-export function ListView({ courses, onSelectCourse }: ListViewProps) {
+export function ListView({ courses, onSelectCourse, modifiedKeys }: ListViewProps) {
   const theme = useTheme();
   const glacier = theme.glacier;
   const todayStr = getTodayParisDateString();
@@ -90,6 +91,7 @@ export function ListView({ courses, onSelectCourse }: ListViewProps) {
               <CourseCard
                 key={course.key}
                 course={course}
+                isModified={modifiedKeys?.has(course.key)}
                 onPress={() => onSelectCourse(course)}
               />
             ))}

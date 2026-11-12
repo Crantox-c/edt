@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { Course } from "@/lib/ics";
 import {
@@ -15,6 +15,10 @@ export function useSchedule(url = DEFAULT_ICS_URL) {
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [changes, setChanges] = useState<{ added: Course[]; removed: Course[] }>({
+    added: [],
+    removed: [],
+  });
   const isSyncingRef = useRef(false);
 
   const performSync = useCallback(
@@ -27,6 +31,7 @@ export function useSchedule(url = DEFAULT_ICS_URL) {
         const result: SyncResult = await syncIcs(url, asyncStorageKV);
         setCourses(result.courses);
         setLastSync(result.lastSync);
+        setChanges(result.changes);
         setError(result.error ?? null);
       } catch (e) {
         setError(String((e as Error).message ?? e));
@@ -87,11 +92,19 @@ export function useSchedule(url = DEFAULT_ICS_URL) {
 
   const refresh = useCallback(() => performSync(true), [performSync]);
 
+  const modifiedKeys = useMemo(() => {
+    const set = new Set<string>();
+    changes.added.forEach((c) => set.add(c.key));
+    return set;
+  }, [changes]);
+
   return {
     courses,
     lastSync,
     isSyncing,
     error,
+    changes,
+    modifiedKeys,
     isStale: isStale(lastSync),
     refresh,
   };

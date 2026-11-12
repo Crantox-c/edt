@@ -23,6 +23,7 @@ export type WeekViewProps = {
   onSelectMonday: (mondayStr: string) => void;
   onSelectCourse: (course: Course) => void;
   onGoToDay?: (dateStr: string) => void;
+  modifiedKeys?: Set<string>;
 };
 
 export function WeekView({
@@ -31,6 +32,7 @@ export function WeekView({
   onSelectMonday,
   onSelectCourse,
   onGoToDay,
+  modifiedKeys,
 }: WeekViewProps) {
   const theme = useTheme();
   const glacier = theme.glacier;
@@ -175,6 +177,7 @@ export function WeekView({
                       key={course.key}
                       course={course}
                       compact
+                      isModified={modifiedKeys?.has(course.key)}
                       onPress={() => onSelectCourse(course)}
                     />
                   ))}

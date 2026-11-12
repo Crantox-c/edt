@@ -11,9 +11,15 @@ export type CourseCardProps = {
   course: Course;
   onPress?: () => void;
   compact?: boolean;
+  isModified?: boolean;
 };
 
-export function CourseCard({ course, onPress, compact = false }: CourseCardProps) {
+export function CourseCard({
+  course,
+  onPress,
+  compact = false,
+  isModified = false,
+}: CourseCardProps) {
   const theme = useTheme();
   const timeText = formatTimeRange(course.start, course.end);
   const duration = formatDuration(course.start, course.end);
@@ -54,6 +60,16 @@ export function CourseCard({ course, onPress, compact = false }: CourseCardProps
             </ThemedText>
 
             <View style={styles.badgesRow}>
+              {isModified && (
+                <View style={[styles.badge, { backgroundColor: theme.ambre[100] }]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={{ color: theme.ambre[700], fontSize: 10 }}
+                  >
+                    MODIFIÉ
+                  </ThemedText>
+                </View>
+              )}
               {course.kind && (
                 <View style={[styles.badge, { backgroundColor: tokens.badgeBg }]}>
                   <ThemedText

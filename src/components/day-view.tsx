@@ -24,6 +24,7 @@ export type DayViewProps = {
   selectedDate: string; // "YYYY-MM-DD"
   onSelectDate: (dateStr: string) => void;
   onSelectCourse: (course: Course) => void;
+  modifiedKeys?: Set<string>;
 };
 
 export function DayView({
@@ -31,6 +32,7 @@ export function DayView({
   selectedDate,
   onSelectDate,
   onSelectCourse,
+  modifiedKeys,
 }: DayViewProps) {
   const theme = useTheme();
   const glacier = theme.glacier;
@@ -173,6 +175,7 @@ export function DayView({
               <React.Fragment key={course.key}>
                 <CourseCard
                   course={course}
+                  isModified={modifiedKeys?.has(course.key)}
                   onPress={() => onSelectCourse(course)}
                 />
                 {isNowBetweenThisAndNext && <NowIndicator />}

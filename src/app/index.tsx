@@ -15,6 +15,7 @@ import { DayView } from "@/components/day-view";
 import { FilterModal } from "@/components/filter-modal";
 import { ListView } from "@/components/list-view";
 import { NextCourseCard } from "@/components/next-course-card";
+import { NotificationModal } from "@/components/notification-modal";
 import { SearchBar } from "@/components/search-bar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { ThemedText } from "@/components/themed-text";
@@ -23,6 +24,7 @@ import { GlassSurface } from "@/components/ui/glass-surface";
 import { WeekView } from "@/components/week-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useFilters } from "@/hooks/use-filters";
+import { useNotifications } from "@/hooks/use-notifications";
 import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
 import { getMondayOfWeek, getTodayParisDateString } from "@/lib/dates";
@@ -44,9 +46,17 @@ export default function HomeScreen() {
   const theme = useTheme();
   const ambre = theme.ambre;
   const corail = theme.corail;
+  const glacier = theme.glacier;
 
-  const { courses, lastSync, isSyncing, error, isStale, refresh } =
-    useSchedule();
+  const {
+    courses,
+    lastSync,
+    isSyncing,
+    error,
+    modifiedKeys,
+    isStale,
+    refresh,
+  } = useSchedule();
 
   const {
     criteria,
@@ -59,6 +69,15 @@ export default function HomeScreen() {
     resetFilters,
   } = useFilters(courses);
 
+  const {
+    settings: notifSettings,
+    permissionGranted,
+    scheduledCount,
+    updateSettings: updateNotifSettings,
+    requestPermission,
+    reschedule,
+  } = useNotifications(courses);
+
   const todayStr = getTodayParisDateString();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -67,6 +86,7 @@ export default function HomeScreen() {
   );
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   const handleSelectCourse = (course: Course) => {
     setActiveCourse(course);
@@ -98,10 +118,26 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* En-tête principal avec sélecteur de thème */}
+        {/* En-tête principal avec sélecteur de thème & bouton notifications */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <ThemedText type="title">Emploi du temps</ThemedText>
+
+            <Pressable
+              onPress={() => setIsNotificationModalOpen(true)}
+              style={[
+                styles.notifBtn,
+                { backgroundColor: theme.backgroundElement },
+                scheduledCount > 0 && {
+                  borderColor: glacier[500],
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <ThemedText type="smallBold">
+                🔔 {scheduledCount > 0 ? scheduledCount : ""}
+              </ThemedText>
+            </Pressable>
           </View>
 
           {/* Sélecteur de thème (Nuit / Clair / OLED / Auto) */}
@@ -285,6 +321,7 @@ export default function HomeScreen() {
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
                 onSelectCourse={handleSelectCourse}
+                modifiedKeys={modifiedKeys}
               />
             )}
 
@@ -295,6 +332,7 @@ export default function HomeScreen() {
                 onSelectMonday={setSelectedMonday}
                 onSelectCourse={handleSelectCourse}
                 onGoToDay={handleGoToDay}
+                modifiedKeys={modifiedKeys}
               />
             )}
 
@@ -302,6 +340,7 @@ export default function HomeScreen() {
               <ListView
                 courses={filteredCourses}
                 onSelectCourse={handleSelectCourse}
+                modifiedKeys={modifiedKeys}
               />
             )}
           </>
@@ -324,6 +363,18 @@ export default function HomeScreen() {
         onUpdateCriteria={updateCriteria}
         onToggleHiddenSubject={toggleHiddenSubject}
         onResetFilters={resetFilters}
+      />
+
+      {/* Modal des Notifications & Rappels */}
+      <NotificationModal
+        visible={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        settings={notifSettings}
+        permissionGranted={permissionGranted}
+        scheduledCount={scheduledCount}
+        onUpdateSettings={updateNotifSettings}
+        onRequestPermission={requestPermission}
+        onReschedule={reschedule}
       />
     </ThemedView>
   );
@@ -351,6 +402,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  notifBtn: {
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.two,
+    alignItems: "center",
+    justifyContent: "center",
   },
   metaRow: {
     flexDirection: "row",
