@@ -1,9 +1,9 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
+import { Spacing, getCourseColorTokens } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
+import { useTheme } from "@/hooks/use-theme";
 import { formatDuration, formatTimeRange, getNextOrCurrentCourse } from "@/lib/dates";
 import { Course } from "@/lib/ics";
 
@@ -13,6 +13,7 @@ export type NextCourseCardProps = {
 };
 
 export function NextCourseCard({ courses, onSelectCourse }: NextCourseCardProps) {
+  const theme = useTheme();
   const now = useCurrentTime();
   const info = getNextOrCurrentCourse(courses, now);
   const course = info.course;
@@ -25,34 +26,39 @@ export function NextCourseCard({ courses, onSelectCourse }: NextCourseCardProps)
   const duration = formatDuration(course.start, course.end);
   const roomText = course.room ?? "salle non communiquée";
 
+  const tokens = getCourseColorTokens(course.subject, course.kind, theme);
+  const badgeScale = info.isCurrent ? theme.menthe : theme.glacier;
+
   return (
     <Pressable
       onPress={() => onSelectCourse?.(course)}
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
     >
-      <ThemedView
-        type="backgroundElement"
+      <View
         style={[
           styles.container,
-          info.isCurrent ? styles.currentContainer : styles.nextContainer,
+          {
+            backgroundColor: info.isCurrent ? badgeScale[50] : tokens.cardBg,
+            borderColor: info.isCurrent ? badgeScale[300] : tokens.borderColor,
+          },
         ]}
       >
         <View style={styles.topRow}>
           <View
             style={[
               styles.badge,
-              info.isCurrent ? styles.currentBadge : styles.nextBadge,
+              { backgroundColor: badgeScale[100] },
             ]}
           >
             <ThemedText
               type="smallBold"
-              style={info.isCurrent ? styles.currentBadgeText : styles.nextBadgeText}
+              style={{ color: badgeScale[700], fontSize: 11 }}
             >
               {info.isCurrent ? "EN COURS" : "PROCHAIN COURS"}
             </ThemedText>
           </View>
 
-          <View style={styles.countdownBadge}>
+          <View style={[styles.countdownBadge, { backgroundColor: theme.backgroundSelected }]}>
             <ThemedText type="smallBold" style={styles.countdownText}>
               ⏱ {info.countdown}
             </ThemedText>
@@ -64,14 +70,17 @@ export function NextCourseCard({ courses, onSelectCourse }: NextCourseCardProps)
         </ThemedText>
 
         <View style={styles.bottomRow}>
-          <ThemedText type="smallBold" style={styles.timeText}>
+          <ThemedText
+            type="smallBold"
+            style={[styles.timeText, { color: tokens.textColor }]}
+          >
             {timeRange} ({duration})
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Salle : {roomText}
           </ThemedText>
         </View>
-      </ThemedView>
+      </View>
     </Pressable>
   );
 }
@@ -91,14 +100,6 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     borderWidth: 1.5,
   },
-  currentContainer: {
-    borderColor: "#10B98188",
-    backgroundColor: "#10B98110",
-  },
-  nextContainer: {
-    borderColor: "#3B82F666",
-    backgroundColor: "#3B82F610",
-  },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -109,25 +110,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: Spacing.one,
   },
-  currentBadge: {
-    backgroundColor: "#10B98125",
-  },
-  currentBadgeText: {
-    color: "#059669",
-    fontSize: 11,
-  },
-  nextBadge: {
-    backgroundColor: "#3B82F625",
-  },
-  nextBadgeText: {
-    color: "#2563EB",
-    fontSize: 11,
-  },
   countdownBadge: {
     paddingHorizontal: Spacing.two,
     paddingVertical: 2,
     borderRadius: Spacing.one,
-    backgroundColor: "rgba(150, 150, 150, 0.15)",
   },
   countdownText: {
     fontSize: 12,
@@ -145,6 +131,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   timeText: {
-    opacity: 0.9,
+    opacity: 0.95,
   },
 });

@@ -29,6 +29,9 @@ export function ActiveFilterPills({
   onClearAll,
 }: ActiveFilterPillsProps) {
   const theme = useTheme();
+  const glacier = theme.glacier;
+  const ambre = theme.ambre;
+  const corail = theme.corail;
 
   const hasAnyFilter =
     Boolean(criteria.selectedPromo) ||
@@ -50,45 +53,68 @@ export function ActiveFilterPills({
       {criteria.selectedPromo && (
         <Pressable
           onPress={onClearPromo}
-          style={[styles.pill, { backgroundColor: theme.backgroundElement }]}
+          style={[
+            styles.pill,
+            { backgroundColor: glacier[50], borderColor: glacier[300] },
+          ]}
         >
-          <ThemedText type="small">Promo: {criteria.selectedPromo} ✕</ThemedText>
+          <ThemedText type="small" style={{ color: glacier[700] }}>
+            Promo: {criteria.selectedPromo} ✕
+          </ThemedText>
         </Pressable>
       )}
 
       {criteria.selectedKind && (
         <Pressable
           onPress={onClearKind}
-          style={[styles.pill, { backgroundColor: theme.backgroundElement }]}
+          style={[
+            styles.pill,
+            { backgroundColor: glacier[50], borderColor: glacier[300] },
+          ]}
         >
-          <ThemedText type="small">Type: {criteria.selectedKind} ✕</ThemedText>
+          <ThemedText type="small" style={{ color: glacier[700] }}>
+            Type: {criteria.selectedKind} ✕
+          </ThemedText>
         </Pressable>
       )}
 
       {criteria.selectedSubject && (
         <Pressable
           onPress={onClearSubject}
-          style={[styles.pill, { backgroundColor: theme.backgroundElement }]}
+          style={[
+            styles.pill,
+            { backgroundColor: glacier[50], borderColor: glacier[300] },
+          ]}
         >
-          <ThemedText type="small">Matière: {criteria.selectedSubject} ✕</ThemedText>
+          <ThemedText type="small" style={{ color: glacier[700] }}>
+            Matière: {criteria.selectedSubject} ✕
+          </ThemedText>
         </Pressable>
       )}
 
       {criteria.selectedTag && (
         <Pressable
           onPress={onClearTag}
-          style={[styles.pill, { backgroundColor: theme.backgroundElement }]}
+          style={[
+            styles.pill,
+            { backgroundColor: glacier[50], borderColor: glacier[300] },
+          ]}
         >
-          <ThemedText type="small">Tag: {criteria.selectedTag} ✕</ThemedText>
+          <ThemedText type="small" style={{ color: glacier[700] }}>
+            Tag: {criteria.selectedTag} ✕
+          </ThemedText>
         </Pressable>
       )}
 
       {criteria.selectedFloor && (
         <Pressable
           onPress={onClearFloor}
-          style={[styles.pill, { backgroundColor: theme.backgroundElement }]}
+          style={[
+            styles.pill,
+            { backgroundColor: glacier[50], borderColor: glacier[300] },
+          ]}
         >
-          <ThemedText type="small">
+          <ThemedText type="small" style={{ color: glacier[700] }}>
             Étage: {criteria.selectedFloor === "0" ? "RDC" : `${criteria.selectedFloor}e`} ✕
           </ThemedText>
         </Pressable>
@@ -97,25 +123,33 @@ export function ActiveFilterPills({
       {criteria.selectedRoom && (
         <Pressable
           onPress={onClearRoom}
-          style={[styles.pill, { backgroundColor: theme.backgroundElement }]}
+          style={[
+            styles.pill,
+            { backgroundColor: glacier[50], borderColor: glacier[300] },
+          ]}
         >
-          <ThemedText type="small">Salle: {criteria.selectedRoom} ✕</ThemedText>
+          <ThemedText type="small" style={{ color: glacier[700] }}>
+            Salle: {criteria.selectedRoom} ✕
+          </ThemedText>
         </Pressable>
       )}
 
       {criteria.hiddenSubjects.length > 0 && (
         <Pressable
           onPress={onClearHiddenSubjects}
-          style={[styles.pill, styles.hiddenPill]}
+          style={[
+            styles.pill,
+            { backgroundColor: ambre[50], borderColor: ambre[300] },
+          ]}
         >
-          <ThemedText type="small" style={styles.hiddenPillText}>
+          <ThemedText type="small" style={{ color: ambre[700] }}>
             {criteria.hiddenSubjects.length} masquée(s) ✕
           </ThemedText>
         </Pressable>
       )}
 
       <Pressable onPress={onClearAll} style={styles.clearAllBtn}>
-        <ThemedText type="smallBold" style={styles.clearAllText}>
+        <ThemedText type="smallBold" style={{ color: corail[600], fontSize: 12 }}>
           Effacer tout
         </ThemedText>
       </Pressable>
@@ -135,21 +169,9 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: Spacing.one * 1.5,
     borderWidth: 1,
-    borderColor: "#3B82F666",
-  },
-  hiddenPill: {
-    backgroundColor: "#F59E0B22",
-    borderColor: "#F59E0B88",
-  },
-  hiddenPillText: {
-    color: "#D97706",
   },
   clearAllBtn: {
     paddingHorizontal: Spacing.two,
     paddingVertical: 3,
-  },
-  clearAllText: {
-    color: "#EF4444",
-    fontSize: 12,
   },
 });

@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { formatDayHeader, getParisDateString, getTodayParisDateString } from "@/lib/dates";
 import { Course } from "@/lib/ics";
 import { CourseCard } from "./course-card";
@@ -13,9 +14,11 @@ export type ListViewProps = {
 };
 
 export function ListView({ courses, onSelectCourse }: ListViewProps) {
+  const theme = useTheme();
+  const glacier = theme.glacier;
   const todayStr = getTodayParisDateString();
 
-  // Grouper les cours par date pour une SectionList
+  // Grouper les cours par date pour une liste chronologique
   const sections = useMemo(() => {
     const map = new Map<string, Course[]>();
     courses.forEach((c) => {
@@ -50,13 +53,24 @@ export function ListView({ courses, onSelectCourse }: ListViewProps) {
           <View style={styles.sectionHeader}>
             <ThemedText
               type="smallBold"
-              style={[styles.sectionTitle, section.isToday && styles.todayTitle]}
+              style={[
+                styles.sectionTitle,
+                section.isToday && { color: glacier[500] },
+              ]}
             >
               {section.title}
             </ThemedText>
             {section.isToday && (
-              <View style={styles.todayBadge}>
-                <ThemedText type="smallBold" style={styles.todayBadgeText}>
+              <View
+                style={[
+                  styles.todayBadge,
+                  { backgroundColor: glacier[100] },
+                ]}
+              >
+                <ThemedText
+                  type="smallBold"
+                  style={{ color: glacier[700], fontSize: 10 }}
+                >
                   {"Aujourd'hui"}
                 </ThemedText>
               </View>
@@ -102,18 +116,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
   },
-  todayTitle: {
-    color: "#3B82F6",
-  },
   todayBadge: {
     paddingHorizontal: Spacing.one * 1.5,
     paddingVertical: 1,
     borderRadius: Spacing.one,
-    backgroundColor: "#3B82F622",
-  },
-  todayBadgeText: {
-    color: "#3B82F6",
-    fontSize: 10,
   },
   sectionCount: {
     marginLeft: "auto",

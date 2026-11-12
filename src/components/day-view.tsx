@@ -32,6 +32,7 @@ export function DayView({
   onSelectCourse,
 }: DayViewProps) {
   const theme = useTheme();
+  const glacier = theme.glacier;
   const nowMs = useCurrentTime();
   const todayStr = getTodayParisDateString();
   const isToday = selectedDate === todayStr;
@@ -102,7 +103,7 @@ export function DayView({
                 { backgroundColor: theme.backgroundElement },
                 isSelected && {
                   backgroundColor: theme.backgroundSelected,
-                  borderColor: "#3B82F6",
+                  borderColor: glacier[500],
                   borderWidth: 1.5,
                 },
               ]}
@@ -116,14 +117,17 @@ export function DayView({
               </ThemedText>
               <ThemedText
                 type="smallBold"
-                style={[styles.dayTabNumber, isCurrentDay && styles.currentDayNum]}
+                style={[
+                  styles.dayTabNumber,
+                  isCurrentDay && { color: glacier[500] },
+                ]}
               >
                 {dayNum}
               </ThemedText>
               <View
                 style={[
                   styles.courseDot,
-                  hasCourse ? styles.activeDot : styles.invisibleDot,
+                  { backgroundColor: hasCourse ? glacier[500] : "transparent" },
                 ]}
               />
             </Pressable>
@@ -217,20 +221,11 @@ const styles = StyleSheet.create({
   dayTabNumber: {
     fontSize: 14,
   },
-  currentDayNum: {
-    color: "#3B82F6",
-  },
   courseDot: {
     width: 4,
     height: 4,
     borderRadius: 2,
     marginTop: 2,
-  },
-  activeDot: {
-    backgroundColor: "#3B82F6",
-  },
-  invisibleDot: {
-    backgroundColor: "transparent",
   },
   dayHeaderRow: {
     flexDirection: "row",

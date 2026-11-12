@@ -24,12 +24,13 @@ export function SearchBar({
   onOpenFilters,
 }: SearchBarProps) {
   const theme = useTheme();
+  const glacier = theme.glacier;
 
   return (
     <View style={styles.container}>
       <ThemedView
         type="backgroundElement"
-        style={[styles.inputContainer, { borderColor: theme.backgroundSelected }]}
+        style={[styles.inputContainer, { borderColor: theme.border }]}
       >
         <ThemedText type="small" themeColor="textSecondary" style={styles.searchIcon}>
           🔍
@@ -39,7 +40,7 @@ export function SearchBar({
           value={value}
           onChangeText={onChangeText}
           placeholder="Rechercher cours, salle, matière..."
-          placeholderTextColor={theme.textSecondary}
+          placeholderTextColor={theme.textMuted}
           style={[styles.input, { color: theme.text }]}
           autoCorrect={false}
           autoCapitalize="none"
@@ -60,15 +61,21 @@ export function SearchBar({
         onPress={onOpenFilters}
         style={[
           styles.filterBtn,
-          { backgroundColor: theme.backgroundElement },
-          activeFilterCount > 0 && styles.activeFilterBtn,
+          { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+          activeFilterCount > 0 && {
+            backgroundColor: glacier[100],
+            borderColor: glacier[500],
+          },
         ]}
       >
-        <ThemedText type="smallBold" style={activeFilterCount > 0 ? styles.activeFilterIcon : undefined}>
+        <ThemedText
+          type="smallBold"
+          style={activeFilterCount > 0 ? { color: glacier[700] } : undefined}
+        >
           ⚙ Filtres
         </ThemedText>
         {activeFilterCount > 0 && (
-          <View style={styles.badge}>
+          <View style={[styles.badge, { backgroundColor: glacier[500] }]}>
             <ThemedText type="smallBold" style={styles.badgeText}>
               {activeFilterCount}
             </ThemedText>
@@ -113,18 +120,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     height: 40,
     borderRadius: Spacing.two,
+    borderWidth: 1,
     gap: Spacing.one,
   },
-  activeFilterBtn: {
-    backgroundColor: "#3B82F625",
-    borderWidth: 1,
-    borderColor: "#3B82F6",
-  },
-  activeFilterIcon: {
-    color: "#3B82F6",
-  },
   badge: {
-    backgroundColor: "#3B82F6",
     borderRadius: 10,
     width: 20,
     height: 20,

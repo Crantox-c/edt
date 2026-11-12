@@ -1,8 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
+import { Spacing, getCourseColorTokens } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { formatDuration, formatTimeRange } from "@/lib/dates";
 import { Course } from "@/lib/ics";
@@ -19,8 +18,10 @@ export function CourseCard({ course, onPress, compact = false }: CourseCardProps
   const duration = formatDuration(course.start, course.end);
   const roomText = course.room ?? "salle non communiquée";
 
+  // Tokens de couleur calculés dynamiquement depuis le hash de la matière
+  // et modulés selon le type (kind)
+  const tokens = getCourseColorTokens(course.subject, course.kind, theme);
   const isDS = course.kind === "DS" || course.title.toUpperCase().includes("_DS");
-  const isSAE = course.subject === "SAE" || course.title.toUpperCase().startsWith("SAE");
 
   return (
     <Pressable
@@ -30,56 +31,65 @@ export function CourseCard({ course, onPress, compact = false }: CourseCardProps
         pressed && styles.pressed,
       ]}
     >
-      <ThemedView
-        type="backgroundElement"
+      <View
         style={[
           styles.card,
+          {
+            backgroundColor: theme.backgroundElement,
+            borderColor: tokens.borderColor,
+          },
           compact && styles.cardCompact,
-          isDS && styles.dsCardBorder,
-          isSAE && !isDS && styles.saeCardBorder,
         ]}
       >
-        <View style={styles.headerRow}>
-          <ThemedText type="smallBold" style={styles.timeText}>
-            {timeText} ({duration})
+        {/* Barre d'accentuation latérale colorée dérivée de la matière */}
+        <View style={[styles.accentIndicator, { backgroundColor: tokens.accentColor }]} />
+
+        <View style={styles.cardContent}>
+          <View style={styles.headerRow}>
+            <ThemedText
+              type="smallBold"
+              style={[styles.timeText, { color: tokens.textColor }]}
+            >
+              {timeText} ({duration})
+            </ThemedText>
+
+            <View style={styles.badgesRow}>
+              {course.kind && (
+                <View style={[styles.badge, { backgroundColor: tokens.badgeBg }]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={{ color: tokens.textColor, fontSize: 11 }}
+                  >
+                    {isDS ? "DS" : course.kind}
+                  </ThemedText>
+                </View>
+              )}
+              {course.promo && (
+                <View style={[styles.badge, { backgroundColor: theme.backgroundSelected }]}>
+                  <ThemedText type="small" themeColor="textSecondary" style={styles.badgeText}>
+                    {course.promo}
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <ThemedText type="default" style={[styles.title, compact && styles.titleCompact]}>
+            {course.title}
           </ThemedText>
 
-          <View style={styles.badgesRow}>
-            {isDS && (
-              <View style={[styles.badge, styles.dsBadge]}>
-                <ThemedText type="smallBold" style={styles.dsText}>
-                  DS
-                </ThemedText>
-              </View>
-            )}
-            {course.kind && !isDS && (
-              <View style={[styles.badge, { backgroundColor: theme.backgroundSelected }]}>
-                <ThemedText type="smallBold">{course.kind}</ThemedText>
-              </View>
-            )}
-            {course.promo && (
-              <View style={[styles.badge, { backgroundColor: theme.backgroundSelected }]}>
-                <ThemedText type="small">{course.promo}</ThemedText>
-              </View>
+          <View style={styles.footerRow}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Salle : {roomText}
+            </ThemedText>
+            {course.tags.length > 0 && !compact && (
+              <ThemedText type="small" themeColor="textMuted">
+                {course.tags.join(" • ")}
+              </ThemedText>
             )}
           </View>
         </View>
-
-        <ThemedText type="default" style={[styles.title, compact && styles.titleCompact]}>
-          {course.title}
-        </ThemedText>
-
-        <View style={styles.footerRow}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Salle : {roomText}
-          </ThemedText>
-          {course.tags.length > 0 && !compact && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {course.tags.join(" • ")}
-            </ThemedText>
-          )}
-        </View>
-      </ThemedView>
+      </View>
     </Pressable>
   );
 }
@@ -89,26 +99,25 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.82,
     transform: [{ scale: 0.99 }],
   },
   card: {
     borderRadius: Spacing.three,
-    padding: Spacing.three,
-    gap: Spacing.one,
+    flexDirection: "row",
     borderWidth: 1,
-    borderColor: "transparent",
+    overflow: "hidden",
   },
   cardCompact: {
-    padding: Spacing.two,
-    gap: 2,
     borderRadius: Spacing.two,
   },
-  dsCardBorder: {
-    borderColor: "#EF444488",
+  accentIndicator: {
+    width: 4,
   },
-  saeCardBorder: {
-    borderColor: "#3B82F666",
+  cardContent: {
+    flex: 1,
+    padding: Spacing.three,
+    gap: Spacing.one,
   },
   headerRow: {
     flexDirection: "row",
@@ -116,7 +125,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   timeText: {
-    opacity: 0.9,
+    opacity: 0.95,
   },
   badgesRow: {
     flexDirection: "row",
@@ -127,11 +136,8 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: Spacing.one,
   },
-  dsBadge: {
-    backgroundColor: "#EF444422",
-  },
-  dsText: {
-    color: "#EF4444",
+  badgeText: {
+    fontSize: 11,
   },
   title: {
     fontSize: 16,

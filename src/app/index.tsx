@@ -16,6 +16,7 @@ import { FilterModal } from "@/components/filter-modal";
 import { ListView } from "@/components/list-view";
 import { NextCourseCard } from "@/components/next-course-card";
 import { SearchBar } from "@/components/search-bar";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { WeekView } from "@/components/week-view";
@@ -40,6 +41,9 @@ function formatLastSync(lastSync: number | null): string {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const ambre = theme.ambre;
+  const corail = theme.corail;
+
   const { courses, lastSync, isSyncing, error, isStale, refresh } =
     useSchedule();
 
@@ -89,13 +93,18 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={isSyncing}
             onRefresh={refresh}
-            tintColor={theme.text}
+            tintColor={theme.accent}
           />
         }
       >
-        {/* En-tête principal */}
+        {/* En-tête principal avec sélecteur de thème */}
         <View style={styles.header}>
-          <ThemedText type="title">Emploi du temps</ThemedText>
+          <View style={styles.titleRow}>
+            <ThemedText type="title">Emploi du temps</ThemedText>
+          </View>
+
+          {/* Sélecteur de thème (Nuit / Clair / OLED / Auto) */}
+          <ThemeSwitcher />
 
           <View style={styles.metaRow}>
             <ThemedText type="small" themeColor="textSecondary">
@@ -113,16 +122,32 @@ export default function HomeScreen() {
           </View>
 
           {isStale && (
-            <View style={styles.staleBanner}>
-              <ThemedText type="smallBold" style={styles.staleText}>
+            <View
+              style={[
+                styles.staleBanner,
+                { backgroundColor: ambre[50], borderColor: ambre[300] },
+              ]}
+            >
+              <ThemedText
+                type="smallBold"
+                style={{ color: ambre[700] }}
+              >
                 Données anciennes (&gt; 24h)
               </ThemedText>
             </View>
           )}
 
           {error && (
-            <View style={styles.errorBanner}>
-              <ThemedText type="small" style={styles.errorText}>
+            <View
+              style={[
+                styles.errorBanner,
+                { backgroundColor: corail[50], borderColor: corail[300] },
+              ]}
+            >
+              <ThemedText
+                type="small"
+                style={{ color: corail[700] }}
+              >
                 Réseau indisponible ({error}). Dernier flux valide conservé.
               </ThemedText>
             </View>
@@ -172,7 +197,9 @@ export default function HomeScreen() {
           >
             <ThemedText
               type="smallBold"
-              themeColor={viewMode === "day" ? "text" : "textSecondary"}
+              style={{
+                color: viewMode === "day" ? theme.accent : theme.textSecondary,
+              }}
             >
               Jour
             </ThemedText>
@@ -190,7 +217,9 @@ export default function HomeScreen() {
           >
             <ThemedText
               type="smallBold"
-              themeColor={viewMode === "week" ? "text" : "textSecondary"}
+              style={{
+                color: viewMode === "week" ? theme.accent : theme.textSecondary,
+              }}
             >
               Semaine
             </ThemedText>
@@ -208,7 +237,9 @@ export default function HomeScreen() {
           >
             <ThemedText
               type="smallBold"
-              themeColor={viewMode === "list" ? "text" : "textSecondary"}
+              style={{
+                color: viewMode === "list" ? theme.accent : theme.textSecondary,
+              }}
             >
               Liste
             </ThemedText>
@@ -218,7 +249,7 @@ export default function HomeScreen() {
         {/* Contenu selon la vue active */}
         {courses.length === 0 && isSyncing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={theme.text} />
+            <ActivityIndicator size="small" color={theme.accent} />
             <ThemedText type="small" themeColor="textSecondary">
               Chargement des cours...
             </ThemedText>
@@ -306,34 +337,32 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingBottom: Spacing.two,
-    gap: Spacing.two,
+    gap: Spacing.one,
+  },
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 2,
   },
   staleBanner: {
-    backgroundColor: "#F59E0B22",
-    borderColor: "#F59E0B88",
     borderWidth: 1,
     borderRadius: Spacing.two,
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.two,
-  },
-  staleText: {
-    color: "#D97706",
+    marginTop: Spacing.one,
   },
   errorBanner: {
-    backgroundColor: "#EF444422",
-    borderColor: "#EF444488",
     borderWidth: 1,
     borderRadius: Spacing.two,
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.two,
-  },
-  errorText: {
-    color: "#DC2626",
+    marginTop: Spacing.one,
   },
   viewSwitcher: {
     flexDirection: "row",

@@ -31,6 +31,8 @@ export function FilterModal({
   onResetFilters,
 }: FilterModalProps) {
   const theme = useTheme();
+  const glacier = theme.glacier;
+  const corail = theme.corail;
 
   return (
     <Modal
@@ -45,14 +47,14 @@ export function FilterModal({
           onPress={(e) => e.stopPropagation()}
         >
           {/* En-tête */}
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <ThemedText type="subtitle" style={styles.headerTitle}>
               Filtres
             </ThemedText>
 
             <View style={styles.headerActions}>
               <Pressable onPress={onResetFilters} style={styles.resetBtn}>
-                <ThemedText type="smallBold" style={styles.resetText}>
+                <ThemedText type="smallBold" style={{ color: corail[600] }}>
                   Réinitialiser
                 </ThemedText>
               </Pressable>
@@ -79,12 +81,15 @@ export function FilterModal({
                     style={[
                       styles.chip,
                       { backgroundColor: theme.backgroundElement },
-                      criteria.selectedPromo === null && styles.activeChip,
+                      criteria.selectedPromo === null && {
+                        backgroundColor: glacier[100],
+                        borderColor: glacier[500],
+                      },
                     ]}
                   >
                     <ThemedText
                       type="small"
-                      style={criteria.selectedPromo === null ? styles.activeChipText : undefined}
+                      style={criteria.selectedPromo === null ? { color: glacier[700], fontWeight: "600" } : undefined}
                     >
                       Toutes
                     </ThemedText>
@@ -101,12 +106,15 @@ export function FilterModal({
                         style={[
                           styles.chip,
                           { backgroundColor: theme.backgroundElement },
-                          isSelected && styles.activeChip,
+                          isSelected && {
+                            backgroundColor: glacier[100],
+                            borderColor: glacier[500],
+                          },
                         ]}
                       >
                         <ThemedText
                           type="small"
-                          style={isSelected ? styles.activeChipText : undefined}
+                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
                         >
                           {promo}
                         </ThemedText>
@@ -129,12 +137,15 @@ export function FilterModal({
                     style={[
                       styles.chip,
                       { backgroundColor: theme.backgroundElement },
-                      criteria.selectedKind === null && styles.activeChip,
+                      criteria.selectedKind === null && {
+                        backgroundColor: glacier[100],
+                        borderColor: glacier[500],
+                      },
                     ]}
                   >
                     <ThemedText
                       type="small"
-                      style={criteria.selectedKind === null ? styles.activeChipText : undefined}
+                      style={criteria.selectedKind === null ? { color: glacier[700], fontWeight: "600" } : undefined}
                     >
                       Tous
                     </ThemedText>
@@ -151,12 +162,15 @@ export function FilterModal({
                         style={[
                           styles.chip,
                           { backgroundColor: theme.backgroundElement },
-                          isSelected && styles.activeChip,
+                          isSelected && {
+                            backgroundColor: glacier[100],
+                            borderColor: glacier[500],
+                          },
                         ]}
                       >
                         <ThemedText
                           type="small"
-                          style={isSelected ? styles.activeChipText : undefined}
+                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
                         >
                           {kind}
                         </ThemedText>
@@ -179,12 +193,15 @@ export function FilterModal({
                     style={[
                       styles.chip,
                       { backgroundColor: theme.backgroundElement },
-                      criteria.selectedFloor === null && styles.activeChip,
+                      criteria.selectedFloor === null && {
+                        backgroundColor: glacier[100],
+                        borderColor: glacier[500],
+                      },
                     ]}
                   >
                     <ThemedText
                       type="small"
-                      style={criteria.selectedFloor === null ? styles.activeChipText : undefined}
+                      style={criteria.selectedFloor === null ? { color: glacier[700], fontWeight: "600" } : undefined}
                     >
                       Tous
                     </ThemedText>
@@ -202,12 +219,15 @@ export function FilterModal({
                         style={[
                           styles.chip,
                           { backgroundColor: theme.backgroundElement },
-                          isSelected && styles.activeChip,
+                          isSelected && {
+                            backgroundColor: glacier[100],
+                            borderColor: glacier[500],
+                          },
                         ]}
                       >
                         <ThemedText
                           type="small"
-                          style={isSelected ? styles.activeChipText : undefined}
+                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
                         >
                           {label}
                         </ThemedText>
@@ -230,12 +250,15 @@ export function FilterModal({
                     style={[
                       styles.chip,
                       { backgroundColor: theme.backgroundElement },
-                      criteria.selectedSubject === null && styles.activeChip,
+                      criteria.selectedSubject === null && {
+                        backgroundColor: glacier[100],
+                        borderColor: glacier[500],
+                      },
                     ]}
                   >
                     <ThemedText
                       type="small"
-                      style={criteria.selectedSubject === null ? styles.activeChipText : undefined}
+                      style={criteria.selectedSubject === null ? { color: glacier[700], fontWeight: "600" } : undefined}
                     >
                       Toutes
                     </ThemedText>
@@ -252,12 +275,15 @@ export function FilterModal({
                         style={[
                           styles.chip,
                           { backgroundColor: theme.backgroundElement },
-                          isSelected && styles.activeChip,
+                          isSelected && {
+                            backgroundColor: glacier[100],
+                            borderColor: glacier[500],
+                          },
                         ]}
                       >
                         <ThemedText
                           type="small"
-                          style={isSelected ? styles.activeChipText : undefined}
+                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
                         >
                           {subject}
                         </ThemedText>
@@ -280,12 +306,15 @@ export function FilterModal({
                     style={[
                       styles.chip,
                       { backgroundColor: theme.backgroundElement },
-                      criteria.selectedTag === null && styles.activeChip,
+                      criteria.selectedTag === null && {
+                        backgroundColor: glacier[100],
+                        borderColor: glacier[500],
+                      },
                     ]}
                   >
                     <ThemedText
                       type="small"
-                      style={criteria.selectedTag === null ? styles.activeChipText : undefined}
+                      style={criteria.selectedTag === null ? { color: glacier[700], fontWeight: "600" } : undefined}
                     >
                       Tous
                     </ThemedText>
@@ -302,12 +331,15 @@ export function FilterModal({
                         style={[
                           styles.chip,
                           { backgroundColor: theme.backgroundElement },
-                          isSelected && styles.activeChip,
+                          isSelected && {
+                            backgroundColor: glacier[100],
+                            borderColor: glacier[500],
+                          },
                         ]}
                       >
                         <ThemedText
                           type="small"
-                          style={isSelected ? styles.activeChipText : undefined}
+                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
                         >
                           {tag}
                         </ThemedText>
@@ -330,12 +362,15 @@ export function FilterModal({
                     style={[
                       styles.chip,
                       { backgroundColor: theme.backgroundElement },
-                      criteria.selectedRoom === null && styles.activeChip,
+                      criteria.selectedRoom === null && {
+                        backgroundColor: glacier[100],
+                        borderColor: glacier[500],
+                      },
                     ]}
                   >
                     <ThemedText
                       type="small"
-                      style={criteria.selectedRoom === null ? styles.activeChipText : undefined}
+                      style={criteria.selectedRoom === null ? { color: glacier[700], fontWeight: "600" } : undefined}
                     >
                       Toutes
                     </ThemedText>
@@ -352,12 +387,15 @@ export function FilterModal({
                         style={[
                           styles.chip,
                           { backgroundColor: theme.backgroundElement },
-                          isSelected && styles.activeChip,
+                          isSelected && {
+                            backgroundColor: glacier[100],
+                            borderColor: glacier[500],
+                          },
                         ]}
                       >
                         <ThemedText
                           type="small"
-                          style={isSelected ? styles.activeChipText : undefined}
+                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
                         >
                           {room}
                         </ThemedText>
@@ -390,12 +428,15 @@ export function FilterModal({
                         style={[
                           styles.chip,
                           { backgroundColor: theme.backgroundElement },
-                          isHidden && styles.hiddenChip,
+                          isHidden && {
+                            backgroundColor: corail[100],
+                            borderColor: corail[500],
+                          },
                         ]}
                       >
                         <ThemedText
                           type="small"
-                          style={isHidden ? styles.hiddenChipText : undefined}
+                          style={isHidden ? { color: corail[700], fontWeight: "600" } : undefined}
                         >
                           {isHidden ? `🚫 ${subject} (masquée)` : subject}
                         </ThemedText>
@@ -432,7 +473,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.two,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(150,150,150,0.2)",
   },
   headerTitle: {
     fontSize: 20,
@@ -446,9 +486,6 @@ const styles = StyleSheet.create({
   resetBtn: {
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
-  },
-  resetText: {
-    color: "#EF4444",
   },
   applyBtn: {
     paddingHorizontal: Spacing.three,
@@ -480,21 +517,5 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     borderWidth: 1,
     borderColor: "transparent",
-  },
-  activeChip: {
-    backgroundColor: "#3B82F625",
-    borderColor: "#3B82F6",
-  },
-  activeChipText: {
-    color: "#3B82F6",
-    fontWeight: "600",
-  },
-  hiddenChip: {
-    backgroundColor: "#EF444422",
-    borderColor: "#EF4444",
-  },
-  hiddenChipText: {
-    color: "#EF4444",
-    fontWeight: "600",
   },
 });

@@ -6,7 +6,7 @@ import {
   View,
 } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import { Spacing } from "@/constants/theme";
+import { Spacing, getCourseColorTokens } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { formatDayHeader, formatDuration, formatTimeRange, getParisDateString } from "@/lib/dates";
 import { Course } from "@/lib/ics";
@@ -32,6 +32,8 @@ export function CourseDetailModal({
   const duration = formatDuration(course.start, course.end);
   const roomText = course.room ?? "salle non communiquée";
 
+  const tokens = getCourseColorTokens(course.subject, course.kind, theme);
+
   return (
     <Modal
       visible={visible}
@@ -41,7 +43,13 @@ export function CourseDetailModal({
     >
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
-          style={[styles.modalCard, { backgroundColor: theme.backgroundElement }]}
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: theme.backgroundElement,
+              borderColor: tokens.borderColor,
+            },
+          ]}
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.header}>
@@ -49,8 +57,10 @@ export function CourseDetailModal({
               DÉTAIL DU COURS
             </ThemedText>
             {course.kind && (
-              <View style={[styles.badge, { backgroundColor: theme.backgroundSelected }]}>
-                <ThemedText type="smallBold">{course.kind}</ThemedText>
+              <View style={[styles.badge, { backgroundColor: tokens.badgeBg }]}>
+                <ThemedText type="smallBold" style={{ color: tokens.textColor }}>
+                  {course.kind}
+                </ThemedText>
               </View>
             )}
           </View>
@@ -59,7 +69,7 @@ export function CourseDetailModal({
             {course.title}
           </ThemedText>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
           <View style={styles.infoRow}>
             <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
@@ -74,7 +84,10 @@ export function CourseDetailModal({
             <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
               Horaires
             </ThemedText>
-            <ThemedText type="smallBold" style={styles.value}>
+            <ThemedText
+              type="smallBold"
+              style={[styles.value, { color: tokens.textColor }]}
+            >
               {timeRange} ({duration})
             </ThemedText>
           </View>
@@ -92,7 +105,7 @@ export function CourseDetailModal({
             <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
               Matière
             </ThemedText>
-            <ThemedText type="small" style={styles.value}>
+            <ThemedText type="smallBold" style={[styles.value, { color: tokens.textColor }]}>
               {course.subject}
             </ThemedText>
           </View>
@@ -145,6 +158,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.four,
     padding: Spacing.four,
     gap: Spacing.two,
+    borderWidth: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -169,7 +183,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(150, 150, 150, 0.3)",
     marginVertical: Spacing.one,
   },
   infoRow: {

@@ -32,6 +32,7 @@ export function WeekView({
   onGoToDay,
 }: WeekViewProps) {
   const theme = useTheme();
+  const glacier = theme.glacier;
   const todayStr = getTodayParisDateString();
   const thisWeekMonday = getMondayOfWeek(todayStr);
 
@@ -116,7 +117,10 @@ export function WeekView({
               type="backgroundElement"
               style={[
                 styles.daySection,
-                isToday && styles.todaySection,
+                isToday && {
+                  borderWidth: 1.5,
+                  borderColor: glacier[300],
+                },
               ]}
             >
               <Pressable
@@ -126,13 +130,24 @@ export function WeekView({
                 <View style={styles.dayTitleWithBadge}>
                   <ThemedText
                     type="smallBold"
-                    style={[styles.daySectionTitle, isToday && styles.todayTitle]}
+                    style={[
+                      styles.daySectionTitle,
+                      isToday && { color: glacier[500] },
+                    ]}
                   >
                     {formatDayHeader(dateStr)}
                   </ThemedText>
                   {isToday && (
-                    <View style={styles.todayBadge}>
-                      <ThemedText type="smallBold" style={styles.todayBadgeText}>
+                    <View
+                      style={[
+                        styles.todayBadge,
+                        { backgroundColor: glacier[100] },
+                      ]}
+                    >
+                      <ThemedText
+                        type="smallBold"
+                        style={{ color: glacier[700], fontSize: 10 }}
+                      >
                         {"Aujourd'hui"}
                       </ThemedText>
                     </View>
@@ -211,10 +226,6 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  todaySection: {
-    borderWidth: 1.5,
-    borderColor: "#3B82F666",
-  },
   daySectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -228,18 +239,10 @@ const styles = StyleSheet.create({
   daySectionTitle: {
     fontSize: 15,
   },
-  todayTitle: {
-    color: "#3B82F6",
-  },
   todayBadge: {
     paddingHorizontal: Spacing.one * 1.5,
     paddingVertical: 1,
     borderRadius: Spacing.one,
-    backgroundColor: "#3B82F622",
-  },
-  todayBadgeText: {
-    color: "#3B82F6",
-    fontSize: 10,
   },
   emptyDayText: {
     fontStyle: "italic",
