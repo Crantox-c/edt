@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { Spacing, getCourseColorTokens } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { formatDuration, formatTimeRange } from "@/lib/dates";
@@ -19,27 +20,26 @@ export function CourseCard({ course, onPress, compact = false }: CourseCardProps
   const roomText = course.room ?? "salle non communiquée";
 
   // Tokens de couleur calculés dynamiquement depuis le hash de la matière
-  // et modulés selon le type (kind)
   const tokens = getCourseColorTokens(course.subject, course.kind, theme);
   const isDS = course.kind === "DS" || course.title.toUpperCase().includes("_DS");
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.pressable,
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
     >
-      <View
+      <GlassSurface
+        glassEffectStyle="regular"
+        tintColor={tokens.cardBg}
+        isInteractive={true}
         style={[
           styles.card,
-          {
-            backgroundColor: theme.backgroundElement,
-            borderColor: tokens.borderColor,
-          },
           compact && styles.cardCompact,
         ]}
+        fallbackStyle={{
+          backgroundColor: theme.backgroundElement,
+          borderColor: tokens.borderColor,
+        }}
       >
         {/* Barre d'accentuation latérale colorée dérivée de la matière */}
         <View style={[styles.accentIndicator, { backgroundColor: tokens.accentColor }]} />
@@ -89,7 +89,7 @@ export function CourseCard({ course, onPress, compact = false }: CourseCardProps
             )}
           </View>
         </View>
-      </View>
+      </GlassSurface>
     </Pressable>
   );
 }
@@ -99,13 +99,12 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
   },
   pressed: {
-    opacity: 0.82,
+    opacity: 0.85,
     transform: [{ scale: 0.99 }],
   },
   card: {
     borderRadius: Spacing.three,
     flexDirection: "row",
-    borderWidth: 1,
     overflow: "hidden",
   },
   cardCompact: {

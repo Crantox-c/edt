@@ -1,6 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
 import { ThemedText } from "@/components/themed-text";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { Spacing, ThemeMode } from "@/constants/theme";
 import { useTheme, useThemeContext } from "@/hooks/use-theme";
 
@@ -16,7 +17,14 @@ export function ThemeSwitcher() {
   const { themeMode, setThemeMode } = useThemeContext();
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundElement }]}>
+    <GlassSurface
+      glassEffectStyle="clear"
+      style={styles.container}
+      fallbackStyle={{
+        backgroundColor: theme.backgroundElement,
+        borderColor: theme.border,
+      }}
+    >
       {MODES.map((m) => {
         const isSelected = themeMode === m.key;
         return (
@@ -43,7 +51,7 @@ export function ThemeSwitcher() {
           </Pressable>
         );
       })}
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -53,6 +61,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     padding: 2,
     marginVertical: Spacing.one,
+    overflow: "hidden",
   },
   tab: {
     flex: 1,

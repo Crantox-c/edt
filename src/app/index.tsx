@@ -19,6 +19,7 @@ import { SearchBar } from "@/components/search-bar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { WeekView } from "@/components/week-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useFilters } from "@/hooks/use-filters";
@@ -184,7 +185,14 @@ export default function HomeScreen() {
         )}
 
         {/* Sélecteur de vue : Jour | Semaine | Liste */}
-        <ThemedView type="backgroundElement" style={styles.viewSwitcher}>
+        <GlassSurface
+          glassEffectStyle="clear"
+          style={styles.viewSwitcher}
+          fallbackStyle={{
+            backgroundColor: theme.backgroundElement,
+            borderColor: theme.border,
+          }}
+        >
           <Pressable
             onPress={() => setViewMode("day")}
             style={[
@@ -244,7 +252,7 @@ export default function HomeScreen() {
               Liste
             </ThemedText>
           </Pressable>
-        </ThemedView>
+        </GlassSurface>
 
         {/* Contenu selon la vue active */}
         {courses.length === 0 && isSyncing ? (

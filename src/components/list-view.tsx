@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { formatDayHeader, getParisDateString, getTodayParisDateString } from "@/lib/dates";
@@ -84,7 +85,7 @@ export function ListView({ courses, onSelectCourse }: ListViewProps) {
             </ThemedText>
           </View>
 
-          <View style={styles.coursesGroup}>
+          <GlassSurfaceContainer spacing={Spacing.two} style={styles.coursesGroup}>
             {section.data.map((course) => (
               <CourseCard
                 key={course.key}
@@ -92,7 +93,7 @@ export function ListView({ courses, onSelectCourse }: ListViewProps) {
                 onPress={() => onSelectCourse(course)}
               />
             ))}
-          </View>
+          </GlassSurfaceContainer>
         </View>
       ))}
     </View>

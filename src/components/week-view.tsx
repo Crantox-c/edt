@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -168,7 +169,7 @@ export function WeekView({
                   Aucun cours
                 </ThemedText>
               ) : (
-                <View style={styles.dayCoursesList}>
+                <GlassSurfaceContainer spacing={Spacing.one} style={styles.dayCoursesList}>
                   {dayList.map((course) => (
                     <CourseCard
                       key={course.key}
@@ -177,7 +178,7 @@ export function WeekView({
                       onPress={() => onSelectCourse(course)}
                     />
                   ))}
-                </View>
+                </GlassSurfaceContainer>
               )}
             </ThemedView>
           );

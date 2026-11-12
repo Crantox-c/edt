@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
 import { Spacing } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
 import { useTheme } from "@/hooks/use-theme";
@@ -157,7 +158,7 @@ export function DayView({
           {isToday && <NowIndicator />}
         </ThemedView>
       ) : (
-        <View style={styles.courseList}>
+        <GlassSurfaceContainer spacing={Spacing.two} style={styles.courseList}>
           {/* Si aujourd'hui et avant le premier cours */}
           {isToday && nowMs < dayCourses[0].start && <NowIndicator />}
 
@@ -178,7 +179,7 @@ export function DayView({
               </React.Fragment>
             );
           })}
-        </View>
+        </GlassSurfaceContainer>
       )}
     </View>
   );

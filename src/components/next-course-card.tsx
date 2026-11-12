@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { Spacing, getCourseColorTokens } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
 import { useTheme } from "@/hooks/use-theme";
@@ -34,14 +35,16 @@ export function NextCourseCard({ courses, onSelectCourse }: NextCourseCardProps)
       onPress={() => onSelectCourse?.(course)}
       style={({ pressed }) => [styles.pressable, pressed && styles.pressed]}
     >
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: info.isCurrent ? badgeScale[50] : tokens.cardBg,
-            borderColor: info.isCurrent ? badgeScale[300] : tokens.borderColor,
-          },
-        ]}
+      <GlassSurface
+        glassEffectStyle="regular"
+        tintColor={info.isCurrent ? theme.menthe[50] : tokens.cardBg}
+        isInteractive={true}
+        style={styles.container}
+        fallbackStyle={{
+          backgroundColor: info.isCurrent ? badgeScale[50] : tokens.cardBg,
+          borderColor: info.isCurrent ? badgeScale[300] : tokens.borderColor,
+          borderWidth: 1.5,
+        }}
       >
         <View style={styles.topRow}>
           <View
@@ -80,7 +83,7 @@ export function NextCourseCard({ courses, onSelectCourse }: NextCourseCardProps)
             Salle : {roomText}
           </ThemedText>
         </View>
-      </View>
+      </GlassSurface>
     </Pressable>
   );
 }
@@ -98,7 +101,6 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.three,
     padding: Spacing.three,
     gap: Spacing.one,
-    borderWidth: 1.5,
   },
   topRow: {
     flexDirection: "row",
