@@ -1,17 +1,22 @@
 import React from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   View,
 } from "react-native";
+import { SymbolView } from "expo-symbols";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { MAX_IOS_NOTIFICATIONS, NotificationSettings } from "@/lib/notifications";
-import { Spacing } from "@/constants/theme";
+import { AmbientBackground } from "@/components/ui/ambient-background";
+import { GlassSurface } from "@/components/ui/glass-surface";
+import { PressableScale } from "@/components/ui/pressable-scale";
+import { Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { haptics } from "@/lib/haptics";
+import { MAX_IOS_NOTIFICATIONS, NotificationSettings } from "@/lib/notifications";
 
 export type NotificationModalProps = {
   visible: boolean;
@@ -37,81 +42,132 @@ export function NotificationModal({
   onReschedule,
 }: NotificationModalProps) {
   const theme = useTheme();
-  const glacier = theme.glacier;
+  const accent = theme.accentTiers;
   const ambre = theme.ambre;
+
+  const handleReschedule = async () => {
+    await onReschedule();
+    haptics.success();
+  };
 
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
+      presentationStyle={Platform.OS === "ios" ? "pageSheet" : "overFullScreen"}
+      transparent={Platform.OS !== "ios"}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[styles.container, { backgroundColor: theme.background }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          {/* En-tête */}
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <ThemedText type="subtitle" style={styles.headerTitle}>
-              Notifications & Rappels
-            </ThemedText>
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
+        <AmbientBackground />
+
+        {/* En-tête feuille iOS 26 */}
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
+          <View style={styles.headerTopRow}>
+            <ThemedText type="subtitle">Notifications & Rappels</ThemedText>
 
             <Pressable
-              onPress={onClose}
-              style={[styles.closeBtn, { backgroundColor: theme.backgroundSelected }]}
+              onPress={() => {
+                haptics.tap();
+                onClose();
+              }}
+              hitSlop={6}
+              accessibilityLabel="Fermer"
             >
-              <ThemedText type="smallBold">Fermer</ThemedText>
+              <GlassSurface
+                glassEffectStyle="regular"
+                isInteractive={true}
+                style={styles.closeCircle}
+                fallbackStyle={{
+                  backgroundColor: theme.backgroundSelected,
+                  borderColor: theme.border,
+                }}
+              >
+                <SymbolView
+                  name={{ ios: "xmark", android: "close", web: "close" }}
+                  size={17}
+                  weight="semibold"
+                  tintColor={theme.text}
+                />
+              </GlassSurface>
             </Pressable>
           </View>
+        </View>
 
-          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-            {/* Bannière de permission si non accordée */}
-            {permissionGranted === false && (
-              <ThemedView
-                type="backgroundElement"
-                style={[styles.permBanner, { borderColor: ambre[500], backgroundColor: ambre[50] }]}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Bannière de permission si non accordée */}
+          {permissionGranted === false && (
+            <View
+              style={[
+                styles.permBanner,
+                { borderColor: ambre[500], backgroundColor: ambre[50] },
+              ]}
+            >
+              <ThemedText type="smallBold" style={{ color: ambre[700] }}>
+                Notifications non autorisées
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Activez les notifications pour recevoir les rappels avant vos
+                cours.
+              </ThemedText>
+              <PressableScale
+                haptic="soft"
+                onPress={onRequestPermission}
+                style={[styles.permBtn, { backgroundColor: ambre[500] }]}
               >
-                <ThemedText type="smallBold" style={{ color: ambre[700] }}>
-                  ⚠️ Notifications non autorisées
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Activez les notifications pour recevoir les rappels avant vos cours.
-                </ThemedText>
-                <Pressable
-                  onPress={onRequestPermission}
-                  style={[styles.permBtn, { backgroundColor: ambre[500] }]}
+                <ThemedText
+                  type="smallBold"
+                  style={{ color: theme.textOnAccent }}
                 >
-                  <ThemedText type="smallBold" style={{ color: "#FFFFFF" }}>
-                    Autoriser les notifications
-                  </ThemedText>
-                </Pressable>
-              </ThemedView>
-            )}
+                  Autoriser les notifications
+                </ThemedText>
+              </PressableScale>
+            </View>
+          )}
 
+          {/* Carte Inset Grouped des réglages */}
+          <View
+            style={[
+              styles.groupCard,
+              {
+                backgroundColor: theme.cardBg,
+                borderColor: theme.cardBorder,
+              },
+            ]}
+          >
             {/* 1. Activation générale */}
-            <View style={[styles.row, { borderBottomColor: theme.border }]}>
+            <View style={styles.row}>
               <View style={styles.rowInfo}>
-                <ThemedText type="default">Activer les rappels</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Programmation locale automatique après chaque synchronisation
+                <ThemedText type="smallBold">Activer les rappels</ThemedText>
+                <ThemedText type="caption" themeColor="textSecondary">
+                  Programmation locale automatique après chaque synchro
                 </ThemedText>
               </View>
               <Switch
                 value={settings.enabled}
-                onValueChange={(val) => onUpdateSettings({ enabled: val })}
-                trackColor={{ false: theme.border, true: glacier[500] }}
-                thumbColor="#FFFFFF"
+                onValueChange={(val) => {
+                  haptics.toggle();
+                  onUpdateSettings({ enabled: val });
+                }}
+                trackColor={{ false: theme.border, true: accent.primary }}
+                thumbColor={theme.switchThumb}
               />
             </View>
 
             {settings.enabled && (
               <>
+                <View
+                  style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+                />
+
                 {/* 2. Délai avant le cours */}
                 <View style={styles.section}>
-                  <ThemedText type="smallBold" themeColor="textSecondary">
-                    DÉLAI DU RAPPEL AVANT COURS
+                  <ThemedText type="overline" themeColor="textSecondary">
+                    Délai du rappel avant cours
                   </ThemedText>
                   <View style={styles.chipsRow}>
                     {LEAD_TIMES.map((mins) => {
@@ -119,19 +175,29 @@ export function NotificationModal({
                       return (
                         <Pressable
                           key={mins}
-                          onPress={() => onUpdateSettings({ leadTimeMinutes: mins })}
+                          onPress={() => {
+                            haptics.selection();
+                            onUpdateSettings({ leadTimeMinutes: mins });
+                          }}
                           style={[
                             styles.chip,
-                            { backgroundColor: theme.backgroundElement },
-                            isSelected && {
-                              backgroundColor: glacier[100],
-                              borderColor: glacier[500],
+                            {
+                              backgroundColor: isSelected
+                                ? accent.softBg
+                                : theme.cardBgSubtle,
+                              borderColor: isSelected
+                                ? accent.primary
+                                : theme.cardBorder,
                             },
                           ]}
                         >
                           <ThemedText
-                            type="small"
-                            style={isSelected ? { color: glacier[700], fontWeight: "700" } : undefined}
+                            type={isSelected ? "smallBold" : "small"}
+                            style={{
+                              color: isSelected
+                                ? accent.text
+                                : theme.textSecondary,
+                            }}
                           >
                             {mins} min avant
                           </ThemedText>
@@ -141,135 +207,170 @@ export function NotificationModal({
                   </View>
                 </View>
 
+                <View
+                  style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+                />
+
                 {/* 3. Résumé du matin */}
-                <View style={[styles.row, { borderBottomColor: theme.border }]}>
+                <View style={styles.row}>
                   <View style={styles.rowInfo}>
-                    <ThemedText type="default">Résumé du matin</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
+                    <ThemedText type="smallBold">Résumé du matin</ThemedText>
+                    <ThemedText type="caption" themeColor="textSecondary">
                       Notification à 07h30 les jours où vous avez cours
                     </ThemedText>
                   </View>
                   <Switch
                     value={settings.morningBriefingEnabled}
-                    onValueChange={(val) =>
-                      onUpdateSettings({ morningBriefingEnabled: val })
-                    }
-                    trackColor={{ false: theme.border, true: glacier[500] }}
-                    thumbColor="#FFFFFF"
+                    onValueChange={(val) => {
+                      haptics.toggle();
+                      onUpdateSettings({ morningBriefingEnabled: val });
+                    }}
+                    trackColor={{ false: theme.border, true: accent.primary }}
+                    thumbColor={theme.switchThumb}
                   />
                 </View>
 
+                <View
+                  style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+                />
+
                 {/* 4. Alerte spéciale veille de DS */}
-                <View style={[styles.row, { borderBottomColor: theme.border }]}>
+                <View style={styles.row}>
                   <View style={styles.rowInfo}>
-                    <ThemedText type="default">Alerte veille de DS</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
+                    <ThemedText type="smallBold">Alerte veille de DS</ThemedText>
+                    <ThemedText type="caption" themeColor="textSecondary">
                       Rappel la veille à 20h00 pour chaque devoir surveillé
                     </ThemedText>
                   </View>
                   <Switch
                     value={settings.dsSpecialAlert}
-                    onValueChange={(val) =>
-                      onUpdateSettings({ dsSpecialAlert: val })
-                    }
-                    trackColor={{ false: theme.border, true: glacier[500] }}
-                    thumbColor="#FFFFFF"
+                    onValueChange={(val) => {
+                      haptics.toggle();
+                      onUpdateSettings({ dsSpecialAlert: val });
+                    }}
+                    trackColor={{ false: theme.border, true: accent.primary }}
+                    thumbColor={theme.switchThumb}
                   />
                 </View>
-
-                {/* 5. Statut système & Limite iOS 64 */}
-                <ThemedView
-                  type="backgroundElement"
-                  style={[styles.statusCard, { borderColor: theme.border }]}
-                >
-                  <View style={styles.statusHeader}>
-                    <ThemedText type="smallBold" themeColor="textSecondary">
-                      STATUT DU PLANIFICATEUR
-                    </ThemedText>
-                    <ThemedText type="smallBold" style={{ color: glacier[500] }}>
-                      {scheduledCount} / {MAX_IOS_NOTIFICATIONS} en attente
-                    </ThemedText>
-                  </View>
-
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Conforme à la limite stricte d&apos;iOS de 64 notifications locales.
-                    Les notifications couvrent les prochains jours et sont renouvelées à chaque synchro.
-                  </ThemedText>
-
-                  <Pressable
-                    onPress={onReschedule}
-                    style={[styles.rescheduleBtn, { backgroundColor: theme.backgroundSelected }]}
-                  >
-                    <ThemedText type="smallBold">
-                      🔄 Reprogrammer maintenant
-                    </ThemedText>
-                  </Pressable>
-                </ThemedView>
               </>
             )}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
+          </View>
+
+          {settings.enabled && (
+            /* 5. Statut système & Limite iOS 64 */
+            <View
+              style={[
+                styles.statusCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <View style={styles.statusHeader}>
+                <ThemedText type="overline" themeColor="textSecondary">
+                  Statut du planificateur
+                </ThemedText>
+                <ThemedText type="tabular" style={{ color: accent.primary }}>
+                  {scheduledCount} / {MAX_IOS_NOTIFICATIONS} en attente
+                </ThemedText>
+              </View>
+
+              <ThemedText type="small" themeColor="textSecondary">
+                Conforme à la limite stricte d&apos;iOS de 64 notifications
+                locales. Les notifications couvrent les prochains jours et sont
+                renouvelées à chaque synchro.
+              </ThemedText>
+
+              <PressableScale
+                haptic="none"
+                onPress={handleReschedule}
+                style={[
+                  styles.rescheduleBtn,
+                  { backgroundColor: theme.backgroundSelected },
+                ]}
+              >
+                <ThemedText type="smallBold">
+                  Reprogrammer maintenant
+                </ThemedText>
+              </PressableScale>
+            </View>
+          )}
+        </ScrollView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  root: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  container: {
-    maxHeight: "85%",
-    borderTopLeftRadius: Spacing.four,
-    borderTopRightRadius: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.six,
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    paddingTop: Spacing.two,
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.two,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+  dragHandle: {
+    width: 36,
+    height: 5,
+    borderRadius: Radius.pill,
+    alignSelf: "center",
   },
-  closeBtn: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
+  headerTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  closeCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     padding: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.three,
+    paddingBottom: Spacing.six,
   },
   permBanner: {
     padding: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    gap: Spacing.one,
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.one + 2,
   },
   permBtn: {
     alignSelf: "flex-start",
     marginTop: Spacing.one,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
+    paddingVertical: Spacing.one + 2,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+  },
+  groupCard: {
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    gap: Spacing.two + 2,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: Spacing.two,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: Spacing.one,
   },
   rowInfo: {
     flex: 1,
@@ -278,6 +379,7 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
+    paddingVertical: Spacing.one,
   },
   chipsRow: {
     flexDirection: "row",
@@ -286,17 +388,17 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one * 1.5,
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    borderColor: "transparent",
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   statusCard: {
     padding: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.two,
-    marginTop: Spacing.two,
   },
   statusHeader: {
     flexDirection: "row",
@@ -306,8 +408,9 @@ const styles = StyleSheet.create({
   rescheduleBtn: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
+    paddingVertical: Spacing.two + 3,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
     marginTop: Spacing.one,
   },
 });

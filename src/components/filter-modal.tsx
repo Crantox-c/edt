@@ -1,21 +1,34 @@
-import React from "react";
+import React, { useSyncExternalStore } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
+import { SymbolView } from "expo-symbols";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
-import { Spacing } from "@/constants/theme";
+import { AmbientBackground } from "@/components/ui/ambient-background";
+import { GlassSurface } from "@/components/ui/glass-surface";
+import { PressableScale } from "@/components/ui/pressable-scale";
+import { Radius, Spacing, getSubjectTint } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { AvailableFilters, FilterCriteria } from "@/lib/filters";
+import { haptics } from "@/lib/haptics";
+import {
+  getSubjectDictionarySnapshot,
+  resolveSubjectReadableName,
+  subscribeSubjectDictionary,
+} from "@/lib/subject-names";
 
 export type FilterModalProps = {
   visible: boolean;
   onClose: () => void;
   criteria: FilterCriteria;
   availableFilters: AvailableFilters;
+  resultCount?: number;
   onUpdateCriteria: (updater: Partial<FilterCriteria>) => void;
   onToggleHiddenSubject: (subject: string) => void;
   onResetFilters: () => void;
@@ -26,496 +39,485 @@ export function FilterModal({
   onClose,
   criteria,
   availableFilters,
+  resultCount,
   onUpdateCriteria,
   onToggleHiddenSubject,
   onResetFilters,
 }: FilterModalProps) {
   const theme = useTheme();
-  const glacier = theme.glacier;
+  const insets = useSafeAreaInsets();
+  const accentScale = theme.accentScale;
   const corail = theme.corail;
+
+  const subjectDict = useSyncExternalStore(
+    subscribeSubjectDictionary,
+    getSubjectDictionarySnapshot,
+    getSubjectDictionarySnapshot
+  );
+
+  const renderChip = (
+    key: string,
+    label: string,
+    isSelected: boolean,
+    onPress: () => void,
+    scale = accentScale
+  ) => (
+    <Pressable
+      key={key}
+      onPress={() => {
+        haptics.selection();
+        onPress();
+      }}
+      style={[
+        styles.chip,
+        {
+          backgroundColor: isSelected ? scale[100] : theme.cardBgSubtle,
+          borderColor: isSelected ? scale[500] : theme.cardBorder,
+        },
+      ]}
+    >
+      <ThemedText
+        type={isSelected ? "smallBold" : "small"}
+        style={{ color: isSelected ? scale[700] : theme.textSecondary }}
+      >
+        {label}
+      </ThemedText>
+    </Pressable>
+  );
 
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
+      presentationStyle={Platform.OS === "ios" ? "pageSheet" : "overFullScreen"}
+      transparent={Platform.OS !== "ios"}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
-          style={[styles.container, { backgroundColor: theme.background }]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          {/* En-tête */}
-          <View style={[styles.header, { borderBottomColor: theme.border }]}>
-            <ThemedText type="subtitle" style={styles.headerTitle}>
+      <View style={[styles.root, { backgroundColor: theme.background }]}>
+        <AmbientBackground />
+
+        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+          <View style={[styles.dragHandle, { backgroundColor: theme.border }]} />
+          <View style={styles.headerRow}>
+            <ThemedText
+              type="subtitle"
+              style={styles.headerTitle}
+              numberOfLines={1}
+            >
               Filtres
             </ThemedText>
 
             <View style={styles.headerActions}>
-              <Pressable onPress={onResetFilters} style={styles.resetBtn}>
-                <ThemedText type="smallBold" style={{ color: corail[600] }}>
+              <Pressable
+                onPress={() => {
+                  haptics.warning();
+                  onResetFilters();
+                }}
+                hitSlop={6}
+                style={styles.resetBtn}
+              >
+                <ThemedText type="smallBold" style={{ color: corail[700] }}>
                   Réinitialiser
                 </ThemedText>
               </Pressable>
 
               <Pressable
-                onPress={onClose}
-                style={[styles.applyBtn, { backgroundColor: theme.backgroundSelected }]}
+                onPress={() => {
+                  haptics.tap();
+                  onClose();
+                }}
+                hitSlop={6}
+                accessibilityLabel="Fermer"
               >
-                <ThemedText type="smallBold">Appliquer</ThemedText>
+                <GlassSurface
+                  glassEffectStyle="regular"
+                  isInteractive={true}
+                  style={styles.closeCircle}
+                  fallbackStyle={{
+                    backgroundColor: theme.backgroundSelected,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <SymbolView
+                    name={{ ios: "xmark", android: "close", web: "close" }}
+                    size={17}
+                    weight="semibold"
+                    tintColor={theme.text}
+                  />
+                </GlassSurface>
               </Pressable>
             </View>
           </View>
+        </View>
 
-          <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-            {/* 1. Promotion */}
-            {availableFilters.promos.length > 0 && (
-              <View style={styles.section}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  PROMOTION
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {availableFilters.promos.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <ThemedText type="overline" themeColor="textSecondary">
+                Promotion / Groupe
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {renderChip("promo-all", "Toutes", criteria.selectedPromo === null, () =>
+                  onUpdateCriteria({ selectedPromo: null })
+                )}
+                {availableFilters.promos.map((promo) =>
+                  renderChip(
+                    `promo-${promo}`,
+                    promo,
+                    criteria.selectedPromo === promo,
+                    () =>
+                      onUpdateCriteria({
+                        selectedPromo:
+                          criteria.selectedPromo === promo ? null : promo,
+                      })
+                  )
+                )}
+              </View>
+            </View>
+          )}
+
+          {availableFilters.kinds.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <ThemedText type="overline" themeColor="textSecondary">
+                Type de séance
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {renderChip("kind-all", "Tous", criteria.selectedKind === null, () =>
+                  onUpdateCriteria({ selectedKind: null })
+                )}
+                {availableFilters.kinds.map((kind) =>
+                  renderChip(
+                    `kind-${kind}`,
+                    kind,
+                    criteria.selectedKind === kind,
+                    () =>
+                      onUpdateCriteria({
+                        selectedKind:
+                          criteria.selectedKind === kind ? null : kind,
+                      }),
+                    kind === "DS" ? corail : accentScale
+                  )
+                )}
+              </View>
+            </View>
+          )}
+
+          {availableFilters.floors.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <ThemedText type="overline" themeColor="textSecondary">
+                Étage de la salle
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {renderChip("floor-all", "Tous", criteria.selectedFloor === null, () =>
+                  onUpdateCriteria({ selectedFloor: null })
+                )}
+                {availableFilters.floors.map((floor) =>
+                  renderChip(
+                    `floor-${floor}`,
+                    floor === "0" ? "RDC (0)" : `${floor}e étage`,
+                    criteria.selectedFloor === floor,
+                    () =>
+                      onUpdateCriteria({
+                        selectedFloor:
+                          criteria.selectedFloor === floor ? null : floor,
+                      })
+                  )
+                )}
+              </View>
+            </View>
+          )}
+
+          {availableFilters.subjects.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <ThemedText type="overline" themeColor="textSecondary">
+                Matière spécifique
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {renderChip(
+                  "sub-all",
+                  "Toutes",
+                  criteria.selectedSubject === null,
+                  () => onUpdateCriteria({ selectedSubject: null })
+                )}
+                {availableFilters.subjects.map((subject) => {
+                  const readable = resolveSubjectReadableName(subject, subjectDict);
+                  const label = readable ? `${subject} • ${readable}` : subject;
+                  const subjectScale = theme[getSubjectTint(subject)];
+                  return renderChip(
+                    `sub-${subject}`,
+                    label,
+                    criteria.selectedSubject === subject,
+                    () =>
+                      onUpdateCriteria({
+                        selectedSubject:
+                          criteria.selectedSubject === subject ? null : subject,
+                      }),
+                    subjectScale
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {availableFilters.tags.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <ThemedText type="overline" themeColor="textSecondary">
+                Sous-groupe / Tag
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {renderChip("tag-all", "Tous", criteria.selectedTag === null, () =>
+                  onUpdateCriteria({ selectedTag: null })
+                )}
+                {availableFilters.tags.map((tag) =>
+                  renderChip(`tag-${tag}`, tag, criteria.selectedTag === tag, () =>
+                    onUpdateCriteria({
+                      selectedTag: criteria.selectedTag === tag ? null : tag,
+                    })
+                  )
+                )}
+              </View>
+            </View>
+          )}
+
+          {availableFilters.rooms.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <ThemedText type="overline" themeColor="textSecondary">
+                Salle
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {renderChip("room-all", "Toutes", criteria.selectedRoom === null, () =>
+                  onUpdateCriteria({ selectedRoom: null })
+                )}
+                {availableFilters.rooms.map((room) =>
+                  renderChip(
+                    `room-${room}`,
+                    room,
+                    criteria.selectedRoom === room,
+                    () =>
+                      onUpdateCriteria({
+                        selectedRoom:
+                          criteria.selectedRoom === room ? null : room,
+                      })
+                  )
+                )}
+              </View>
+            </View>
+          )}
+
+          {availableFilters.subjects.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <View style={styles.hideTitleRow}>
+                <SymbolView
+                  name={{
+                    ios: "eye.slash.fill",
+                    android: "visibility_off",
+                    web: "visibility_off",
+                  }}
+                  size={14}
+                  tintColor={corail[500]}
+                />
+                <ThemedText type="overline" themeColor="textSecondary">
+                  Masquer des matières
                 </ThemedText>
-                <View style={styles.chipsRow}>
-                  <Pressable
-                    onPress={() => onUpdateCriteria({ selectedPromo: null })}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.backgroundElement },
-                      criteria.selectedPromo === null && {
-                        backgroundColor: glacier[100],
-                        borderColor: glacier[500],
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="small"
-                      style={criteria.selectedPromo === null ? { color: glacier[700], fontWeight: "600" } : undefined}
-                    >
-                      Toutes
-                    </ThemedText>
-                  </Pressable>
-
-                  {availableFilters.promos.map((promo) => {
-                    const isSelected = criteria.selectedPromo === promo;
-                    return (
-                      <Pressable
-                        key={promo}
-                        onPress={() =>
-                          onUpdateCriteria({ selectedPromo: isSelected ? null : promo })
-                        }
-                        style={[
-                          styles.chip,
-                          { backgroundColor: theme.backgroundElement },
-                          isSelected && {
-                            backgroundColor: glacier[100],
-                            borderColor: glacier[500],
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          type="small"
-                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
-                        >
-                          {promo}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
               </View>
-            )}
-
-            {/* 2. Type de cours (kind) */}
-            {availableFilters.kinds.length > 0 && (
-              <View style={styles.section}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  TYPE DE COURS
-                </ThemedText>
-                <View style={styles.chipsRow}>
-                  <Pressable
-                    onPress={() => onUpdateCriteria({ selectedKind: null })}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.backgroundElement },
-                      criteria.selectedKind === null && {
-                        backgroundColor: glacier[100],
-                        borderColor: glacier[500],
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="small"
-                      style={criteria.selectedKind === null ? { color: glacier[700], fontWeight: "600" } : undefined}
-                    >
-                      Tous
-                    </ThemedText>
-                  </Pressable>
-
-                  {availableFilters.kinds.map((kind) => {
-                    const isSelected = criteria.selectedKind === kind;
-                    return (
-                      <Pressable
-                        key={kind}
-                        onPress={() =>
-                          onUpdateCriteria({ selectedKind: isSelected ? null : kind })
-                        }
-                        style={[
-                          styles.chip,
-                          { backgroundColor: theme.backgroundElement },
-                          isSelected && {
-                            backgroundColor: glacier[100],
-                            borderColor: glacier[500],
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          type="small"
-                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
-                        >
-                          {kind}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
+              <ThemedText type="caption" themeColor="textSecondary">
+                Touchez une matière pour l&apos;exclure de l&apos;emploi du temps.
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {availableFilters.subjects.map((subject) => {
+                  const isHidden = criteria.hiddenSubjects.includes(subject);
+                  const readable = resolveSubjectReadableName(subject, subjectDict);
+                  const baseLabel = readable ? `${subject} • ${readable}` : subject;
+                  return renderChip(
+                    `hide-${subject}`,
+                    isHidden ? `${baseLabel} (masquée)` : baseLabel,
+                    isHidden,
+                    () => onToggleHiddenSubject(subject),
+                    corail
+                  );
+                })}
               </View>
-            )}
+            </View>
+          )}
+        </ScrollView>
 
-            {/* 3. Étage */}
-            {availableFilters.floors.length > 0 && (
-              <View style={styles.section}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  ÉTAGE DE LA SALLE
-                </ThemedText>
-                <View style={styles.chipsRow}>
-                  <Pressable
-                    onPress={() => onUpdateCriteria({ selectedFloor: null })}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.backgroundElement },
-                      criteria.selectedFloor === null && {
-                        backgroundColor: glacier[100],
-                        borderColor: glacier[500],
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="small"
-                      style={criteria.selectedFloor === null ? { color: glacier[700], fontWeight: "600" } : undefined}
-                    >
-                      Tous
-                    </ThemedText>
-                  </Pressable>
-
-                  {availableFilters.floors.map((floor) => {
-                    const isSelected = criteria.selectedFloor === floor;
-                    const label = floor === "0" ? "RDC (0)" : `${floor}e étage`;
-                    return (
-                      <Pressable
-                        key={floor}
-                        onPress={() =>
-                          onUpdateCriteria({ selectedFloor: isSelected ? null : floor })
-                        }
-                        style={[
-                          styles.chip,
-                          { backgroundColor: theme.backgroundElement },
-                          isSelected && {
-                            backgroundColor: glacier[100],
-                            borderColor: glacier[500],
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          type="small"
-                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
-                        >
-                          {label}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* 4. Matière spécifique */}
-            {availableFilters.subjects.length > 0 && (
-              <View style={styles.section}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  MATIÈRE SPÉCIFIQUE
-                </ThemedText>
-                <View style={styles.chipsRow}>
-                  <Pressable
-                    onPress={() => onUpdateCriteria({ selectedSubject: null })}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.backgroundElement },
-                      criteria.selectedSubject === null && {
-                        backgroundColor: glacier[100],
-                        borderColor: glacier[500],
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="small"
-                      style={criteria.selectedSubject === null ? { color: glacier[700], fontWeight: "600" } : undefined}
-                    >
-                      Toutes
-                    </ThemedText>
-                  </Pressable>
-
-                  {availableFilters.subjects.map((subject) => {
-                    const isSelected = criteria.selectedSubject === subject;
-                    return (
-                      <Pressable
-                        key={subject}
-                        onPress={() =>
-                          onUpdateCriteria({ selectedSubject: isSelected ? null : subject })
-                        }
-                        style={[
-                          styles.chip,
-                          { backgroundColor: theme.backgroundElement },
-                          isSelected && {
-                            backgroundColor: glacier[100],
-                            borderColor: glacier[500],
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          type="small"
-                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
-                        >
-                          {subject}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* 5. Sous-groupe / Tag */}
-            {availableFilters.tags.length > 0 && (
-              <View style={styles.section}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  SOUS-GROUPE / TAG
-                </ThemedText>
-                <View style={styles.chipsRow}>
-                  <Pressable
-                    onPress={() => onUpdateCriteria({ selectedTag: null })}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.backgroundElement },
-                      criteria.selectedTag === null && {
-                        backgroundColor: glacier[100],
-                        borderColor: glacier[500],
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="small"
-                      style={criteria.selectedTag === null ? { color: glacier[700], fontWeight: "600" } : undefined}
-                    >
-                      Tous
-                    </ThemedText>
-                  </Pressable>
-
-                  {availableFilters.tags.map((tag) => {
-                    const isSelected = criteria.selectedTag === tag;
-                    return (
-                      <Pressable
-                        key={tag}
-                        onPress={() =>
-                          onUpdateCriteria({ selectedTag: isSelected ? null : tag })
-                        }
-                        style={[
-                          styles.chip,
-                          { backgroundColor: theme.backgroundElement },
-                          isSelected && {
-                            backgroundColor: glacier[100],
-                            borderColor: glacier[500],
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          type="small"
-                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
-                        >
-                          {tag}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* 6. Salle spécifique */}
-            {availableFilters.rooms.length > 0 && (
-              <View style={styles.section}>
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  SALLE
-                </ThemedText>
-                <View style={styles.chipsRow}>
-                  <Pressable
-                    onPress={() => onUpdateCriteria({ selectedRoom: null })}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: theme.backgroundElement },
-                      criteria.selectedRoom === null && {
-                        backgroundColor: glacier[100],
-                        borderColor: glacier[500],
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="small"
-                      style={criteria.selectedRoom === null ? { color: glacier[700], fontWeight: "600" } : undefined}
-                    >
-                      Toutes
-                    </ThemedText>
-                  </Pressable>
-
-                  {availableFilters.rooms.map((room) => {
-                    const isSelected = criteria.selectedRoom === room;
-                    return (
-                      <Pressable
-                        key={room}
-                        onPress={() =>
-                          onUpdateCriteria({ selectedRoom: isSelected ? null : room })
-                        }
-                        style={[
-                          styles.chip,
-                          { backgroundColor: theme.backgroundElement },
-                          isSelected && {
-                            backgroundColor: glacier[100],
-                            borderColor: glacier[500],
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          type="small"
-                          style={isSelected ? { color: glacier[700], fontWeight: "600" } : undefined}
-                        >
-                          {room}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* 7. Masquer des matières */}
-            {availableFilters.subjects.length > 0 && (
-              <View style={styles.section}>
-                <View>
-                  <ThemedText type="smallBold" themeColor="textSecondary">
-                    MASQUER UNE MATIÈRE
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary" style={styles.subtext}>
-                    Touchez une matière pour la masquer totalement de l&apos;emploi du temps.
-                  </ThemedText>
-                </View>
-
-                <View style={styles.chipsRow}>
-                  {availableFilters.subjects.map((subject) => {
-                    const isHidden = criteria.hiddenSubjects.includes(subject);
-                    return (
-                      <Pressable
-                        key={subject}
-                        onPress={() => onToggleHiddenSubject(subject)}
-                        style={[
-                          styles.chip,
-                          { backgroundColor: theme.backgroundElement },
-                          isHidden && {
-                            backgroundColor: corail[100],
-                            borderColor: corail[500],
-                          },
-                        ]}
-                      >
-                        <ThemedText
-                          type="small"
-                          style={isHidden ? { color: corail[700], fontWeight: "600" } : undefined}
-                        >
-                          {isHidden ? `🚫 ${subject} (masquée)` : subject}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
+        {/* Barre d'action fixe iOS 26 */}
+        <View
+          style={[
+            styles.footerBar,
+            {
+              backgroundColor: theme.background,
+              borderTopColor: theme.borderSubtle,
+              paddingBottom: Math.max(insets.bottom, Spacing.three),
+            },
+          ]}
+        >
+          <PressableScale
+            haptic="soft"
+            onPress={onClose}
+            style={[
+              styles.applyFooterBtn,
+              { backgroundColor: theme.accentTiers.solidBg },
+            ]}
+          >
+            <ThemedText type="headline" style={{ color: theme.textOnAccent }}>
+              {resultCount !== undefined
+                ? `Afficher ${resultCount} cours`
+                : "Appliquer les filtres"}
+            </ThemedText>
+          </PressableScale>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  root: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  container: {
-    maxHeight: "85%",
-    borderTopLeftRadius: Spacing.four,
-    borderTopRightRadius: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.six,
   },
   header: {
+    paddingTop: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.two,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
+  },
+  dragHandle: {
+    width: 36,
+    height: 5,
+    borderRadius: Radius.pill,
+    alignSelf: "center",
+  },
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.two,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.two,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    flex: 1,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
+    flexShrink: 0,
   },
   resetBtn: {
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
+    paddingVertical: Spacing.one + 2,
   },
-  applyBtn: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
+  closeCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: Spacing.four,
-    gap: Spacing.four,
+    padding: Spacing.three,
+    gap: Spacing.three,
+    paddingBottom: Spacing.four,
   },
-  section: {
+  footerBar: {
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two + 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  applyFooterBtn: {
+    minHeight: 50,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.four,
+  },
+  sectionCard: {
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: Spacing.three,
     gap: Spacing.two,
   },
-  subtext: {
-    fontSize: 12,
-    marginTop: 2,
+  hideTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   chipsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.one * 1.5,
+    gap: 8,
   },
   chip: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    borderColor: "transparent",
+    paddingHorizontal: Spacing.two + 5,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

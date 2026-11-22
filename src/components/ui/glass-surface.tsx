@@ -50,7 +50,7 @@ export function GlassSurface({
     const resolvedScheme = colorScheme ?? (theme.isDark ? "dark" : "light");
     return (
       <GlassView
-        style={style}
+        style={[styles.baseContainer, style]}
         glassEffectStyle={glassEffectStyle}
         tintColor={tintColor}
         isInteractive={isInteractive}
@@ -66,6 +66,7 @@ export function GlassSurface({
   return (
     <View
       style={[
+        styles.baseContainer,
         styles.fallbackContainer,
         { backgroundColor: theme.backgroundElement, borderColor: theme.border },
         style,
@@ -110,7 +111,10 @@ export function GlassSurfaceContainer({
 }
 
 const styles = StyleSheet.create({
+  baseContainer: {
+    borderCurve: "continuous",
+  },
   fallbackContainer: {
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

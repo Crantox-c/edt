@@ -1,16 +1,22 @@
 {
   "expo": {
-    "name": "monapp2",
+    "name": "GEII EDT",
     "slug": "monapp2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "monapp2",
+    "scheme": "geiiedt",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "bundleIdentifier": "com.km.geiiedt",
+      "icon": {
+        "light": "./assets/images/app-icon/AppIcon-Standard-1024.png",
+        "dark": "./assets/images/app-icon/AppIcon-Dark-1024.png",
+        "tinted": "./assets/images/app-icon/AppIcon-Tinted-1024.png"
+      }
     },
     "android": {
+      "package": "com.km.geiiedt",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -38,6 +44,42 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#38BDF8"
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.km.geiiedt.widgets",
+          "groupIdentifier": "group.com.km.geiiedt",
+          "widgets": [
+            {
+              "name": "NextCourseWidget",
+              "displayName": "Prochain cours",
+              "description": "Cours en cours ou à venir avec compte à rebours, salle et progression.",
+              "supportedFamilies": [
+                "systemSmall",
+                "accessoryCircular",
+                "accessoryRectangular",
+                "accessoryInline"
+              ]
+            },
+            {
+              "name": "DayAgendaWidget",
+              "displayName": "Journée",
+              "description": "Programme détaillé de votre journée avec horaires, salles et badges.",
+              "supportedFamilies": [
+                "systemMedium"
+              ]
+            },
+            {
+              "name": "WeekOverviewWidget",
+              "displayName": "Semaine & DS",
+              "description": "Charge hebdomadaire, prochains créneaux et alerte DS.",
+              "supportedFamilies": [
+                "systemLarge"
+              ]
+            }
+          ]
         }
       ]
     ],

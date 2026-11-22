@@ -1,13 +1,22 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SymbolView } from "expo-symbols";
 
 import { ActiveFilterPills } from "@/components/active-filter-pills";
 import { CourseDetailModal } from "@/components/course-detail-modal";
@@ -15,22 +24,55 @@ import { DayView } from "@/components/day-view";
 import { FilterModal } from "@/components/filter-modal";
 import { ListView } from "@/components/list-view";
 import { NextCourseCard } from "@/components/next-course-card";
-import { NotificationModal } from "@/components/notification-modal";
-import { SearchBar } from "@/components/search-bar";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import {
+  SegmentedControl,
+  type SegmentedOption,
+} from "@/components/segmented-control";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { GlassSurface } from "@/components/ui/glass-surface";
+import { AmbientBackground } from "@/components/ui/ambient-background";
+import {
+  GlassSurface,
+  GlassSurfaceContainer,
+} from "@/components/ui/glass-surface";
+import { PressableScale } from "@/components/ui/pressable-scale";
 import { WeekView } from "@/components/week-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import {
+  BottomTabInset,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+} from "@/constants/theme";
 import { useFilters } from "@/hooks/use-filters";
-import { useNotifications } from "@/hooks/use-notifications";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
-import { getMondayOfWeek, getTodayParisDateString } from "@/lib/dates";
+import {
+  formatMonthYear,
+  getMondayOfWeek,
+  getTodayParisDateString,
+} from "@/lib/dates";
+import { haptics } from "@/lib/haptics";
 import { Course } from "@/lib/ics";
 
 type ViewMode = "day" | "week" | "list";
+
+const VIEW_MODE_OPTIONS: readonly SegmentedOption<ViewMode>[] = [
+  {
+    key: "day",
+    label: "Jour",
+    icon: { ios: "calendar.day.timeline.left", android: "today", web: "today" },
+  },
+  {
+    key: "week",
+    label: "Semaine",
+    icon: { ios: "calendar", android: "view_week", web: "view_week" },
+  },
+  {
+    key: "list",
+    label: "Liste",
+    icon: { ios: "list.bullet", android: "list", web: "list" },
+  },
+];
 
 function formatLastSync(lastSync: number | null): string {
   if (!lastSync) return "--:--";
@@ -44,9 +86,10 @@ function formatLastSync(lastSync: number | null): string {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const { isReduced } = useReducedMotion();
   const ambre = theme.ambre;
   const corail = theme.corail;
-  const glacier = theme.glacier;
+  const accent = theme.accentTiers;
 
   const {
     courses,
@@ -63,20 +106,10 @@ export default function HomeScreen() {
     availableFilters,
     filteredCourses,
     activeFilterCount,
-    setSearchQuery,
     updateCriteria,
     toggleHiddenSubject,
     resetFilters,
   } = useFilters(courses);
-
-  const {
-    settings: notifSettings,
-    permissionGranted,
-    scheduledCount,
-    updateSettings: updateNotifSettings,
-    requestPermission,
-    reschedule,
-  } = useNotifications(courses);
 
   const todayStr = getTodayParisDateString();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
@@ -86,90 +119,231 @@ export default function HomeScreen() {
   );
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+
+  const spinDeg = useSharedValue(0);
+
+  useEffect(() => {
+    if (isSyncing && !isReduced) {
+      spinDeg.value = 0;
+      spinDeg.value = withRepeat(
+        withTiming(360, { duration: 900, easing: Easing.linear }),
+        -1,
+        false
+      );
+    } else {
+      cancelAnimation(spinDeg);
+      spinDeg.value = 0;
+    }
+    return () => cancelAnimation(spinDeg);
+  }, [isSyncing, isReduced, spinDeg]);
+
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spinDeg.value}deg` }],
+  }));
 
   const handleSelectCourse = (course: Course) => {
     setActiveCourse(course);
   };
 
-  const handleGoToDay = (dateStr: string) => {
+  const handleSelectDate = (dateStr: string) => {
     setSelectedDate(dateStr);
+    setSelectedMonday(getMondayOfWeek(dateStr));
+  };
+
+  const handleGoToDay = (dateStr: string) => {
+    handleSelectDate(dateStr);
     setViewMode("day");
   };
 
-  const isFiltering = activeFilterCount > 0 || criteria.searchQuery.trim().length > 0;
+  const handleChangeViewMode = (nextMode: ViewMode) => {
+    if (nextMode === "week" && viewMode === "day") {
+      setSelectedMonday(getMondayOfWeek(selectedDate));
+    }
+    setViewMode(nextMode);
+  };
+
+  const handlePullRefresh = () => {
+    haptics.toggle();
+    refresh();
+  };
+
+  const isFiltering = activeFilterCount > 0;
+  const monthLabel = formatMonthYear(
+    viewMode === "week" ? selectedMonday : selectedDate
+  );
 
   return (
-    <ThemedView style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <AmbientBackground />
+
       <ScrollView
         style={styles.scrollView}
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: insets.top + Spacing.two,
+            paddingTop: Platform.OS === "ios" ? Spacing.one : insets.top + Spacing.two,
             paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
           },
         ]}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={isSyncing}
-            onRefresh={refresh}
+            onRefresh={handlePullRefresh}
             tintColor={theme.accent}
           />
         }
       >
-        {/* En-tête principal avec sélecteur de thème & bouton notifications */}
+        {/* En-tête éditorial compact + 2 actions flottantes en Liquid Glass (44pt iOS) */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <ThemedText type="title">Emploi du temps</ThemedText>
-
-            <Pressable
-              onPress={() => setIsNotificationModalOpen(true)}
-              style={[
-                styles.notifBtn,
-                { backgroundColor: theme.backgroundElement },
-                scheduledCount > 0 && {
-                  borderColor: glacier[500],
-                  borderWidth: 1,
-                },
-              ]}
-            >
-              <ThemedText type="smallBold">
-                🔔 {scheduledCount > 0 ? scheduledCount : ""}
+            <View style={styles.titleBlock}>
+              <ThemedText type="overline" themeColor="accent">
+                {monthLabel}
               </ThemedText>
-            </Pressable>
-          </View>
+              <ThemedText type="largeTitle">Emploi du temps</ThemedText>
+              <View style={styles.syncMetaRow}>
+                <SymbolView
+                  name={{
+                    ios: isSyncing
+                      ? "arrow.triangle.2.circlepath"
+                      : "checkmark.circle.fill",
+                    android: isSyncing ? "sync" : "check_circle",
+                    web: isSyncing ? "sync" : "check_circle",
+                  }}
+                  size={12}
+                  tintColor={isSyncing ? accent.primary : theme.menthe[500]}
+                />
+                <ThemedText type="caption" themeColor="textSecondary">
+                  {isSyncing
+                    ? "Synchronisation..."
+                    : `Synchro ${formatLastSync(lastSync)}`}
+                  {courses.length > 0 &&
+                    ` • ${
+                      isFiltering
+                        ? `${filteredCourses.length}/${courses.length} cours`
+                        : `${courses.length} cours`
+                    }`}
+                </ThemedText>
+              </View>
+            </View>
 
-          {/* Sélecteur de thème (Nuit / Clair / OLED / Auto) */}
-          <ThemeSwitcher />
+            <GlassSurfaceContainer spacing={10} style={styles.headerActions}>
+              {/* Bouton filtres combinables avec pastille compteur */}
+              <View style={styles.filterBtnWrapper}>
+                <PressableScale
+                  onPress={() => setIsFilterModalOpen(true)}
+                  haptic="soft"
+                  hitSlop={6}
+                  accessibilityLabel="Filtres"
+                >
+                  <GlassSurface
+                    glassEffectStyle="regular"
+                    isInteractive={true}
+                    style={styles.circleActionBtn}
+                    fallbackStyle={{
+                      backgroundColor:
+                        activeFilterCount > 0
+                          ? accent.softBg
+                          : theme.backgroundElement,
+                      borderColor:
+                        activeFilterCount > 0 ? accent.primary : theme.border,
+                    }}
+                  >
+                    <SymbolView
+                      name={{
+                        ios: "slider.horizontal.3",
+                        android: "tune",
+                        web: "tune",
+                      }}
+                      size={20}
+                      weight="medium"
+                      tintColor={
+                        activeFilterCount > 0 ? accent.primary : theme.text
+                      }
+                    />
+                  </GlassSurface>
+                </PressableScale>
 
-          <View style={styles.metaRow}>
-            <ThemedText type="small" themeColor="textSecondary">
-              {isSyncing
-                ? "Synchronisation en cours..."
-                : `Dernière synchro : ${formatLastSync(lastSync)}`}
-            </ThemedText>
-            {courses.length > 0 && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {isFiltering
-                  ? `${filteredCourses.length} / ${courses.length} cours`
-                  : `${courses.length} cours`}
-              </ThemedText>
-            )}
+                {activeFilterCount > 0 && (
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.filterCountBadge,
+                      {
+                        backgroundColor: accent.solidBg,
+                        borderColor: theme.background,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      type="captionBold"
+                      style={[
+                        styles.filterCountText,
+                        { color: theme.textOnAccent },
+                      ]}
+                    >
+                      {activeFilterCount}
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+
+              {/* Bouton rafraîchir */}
+              <PressableScale
+                onPress={refresh}
+                haptic="toggle"
+                hitSlop={6}
+                accessibilityLabel="Actualiser le flux"
+              >
+                <GlassSurface
+                  glassEffectStyle="regular"
+                  isInteractive={true}
+                  style={styles.circleActionBtn}
+                  fallbackStyle={{
+                    backgroundColor: theme.backgroundElement,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <Animated.View style={spinStyle}>
+                    <SymbolView
+                      name={{
+                        ios: "arrow.clockwise",
+                        android: "refresh",
+                        web: "refresh",
+                      }}
+                      size={20}
+                      weight="medium"
+                      tintColor={accent.primary}
+                    />
+                  </Animated.View>
+                </GlassSurface>
+              </PressableScale>
+            </GlassSurfaceContainer>
           </View>
 
           {isStale && (
             <View
               style={[
-                styles.staleBanner,
-                { backgroundColor: ambre[50], borderColor: ambre[300] },
+                styles.banner,
+                { backgroundColor: ambre[100], borderColor: ambre[300] },
               ]}
             >
+              <SymbolView
+                name={{
+                  ios: "exclamationmark.triangle.fill",
+                  android: "warning",
+                  web: "warning",
+                }}
+                size={14}
+                tintColor={ambre[700]}
+              />
               <ThemedText
-                type="smallBold"
+                type="captionBold"
                 style={{ color: ambre[700] }}
               >
-                Données anciennes (&gt; 24h)
+                Données anciennes (&gt; 24h) — tirez pour actualiser
               </ThemedText>
             </View>
           )}
@@ -177,29 +351,30 @@ export default function HomeScreen() {
           {error && (
             <View
               style={[
-                styles.errorBanner,
-                { backgroundColor: corail[50], borderColor: corail[300] },
+                styles.banner,
+                { backgroundColor: corail[100], borderColor: corail[300] },
               ]}
             >
+              <SymbolView
+                name={{
+                  ios: "wifi.slash",
+                  android: "wifi_off",
+                  web: "wifi_off",
+                }}
+                size={14}
+                tintColor={corail[700]}
+              />
               <ThemedText
-                type="small"
-                style={{ color: corail[700] }}
+                type="caption"
+                style={[styles.errorBannerText, { color: corail[700] }]}
               >
-                Réseau indisponible ({error}). Dernier flux valide conservé.
+                Hors-ligne ({error}). Dernier flux valide conservé.
               </ThemedText>
             </View>
           )}
         </View>
 
-        {/* Barre de recherche et bouton filtres */}
-        <SearchBar
-          value={criteria.searchQuery}
-          onChangeText={setSearchQuery}
-          activeFilterCount={activeFilterCount}
-          onOpenFilters={() => setIsFilterModalOpen(true)}
-        />
-
-        {/* Badges des filtres actifs */}
+        {/* Pilules des filtres actifs */}
         <ActiveFilterPills
           criteria={criteria}
           onClearPromo={() => updateCriteria({ selectedPromo: null })}
@@ -212,7 +387,7 @@ export default function HomeScreen() {
           onClearAll={resetFilters}
         />
 
-        {/* Carte Prochain cours avec compte à rebours */}
+        {/* Carte Prochain cours / En cours (vedette Liquid Glass) */}
         {filteredCourses.length > 0 && (
           <NextCourseCard
             courses={filteredCourses}
@@ -220,106 +395,72 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* Sélecteur de vue : Jour | Semaine | Liste */}
-        <GlassSurface
-          glassEffectStyle="clear"
-          style={styles.viewSwitcher}
-          fallbackStyle={{
-            backgroundColor: theme.backgroundElement,
-            borderColor: theme.border,
-          }}
-        >
-          <Pressable
-            onPress={() => setViewMode("day")}
-            style={[
-              styles.switcherTab,
-              viewMode === "day" && [
-                styles.activeSwitcherTab,
-                { backgroundColor: theme.backgroundSelected },
-              ],
-            ]}
-          >
-            <ThemedText
-              type="smallBold"
-              style={{
-                color: viewMode === "day" ? theme.accent : theme.textSecondary,
-              }}
-            >
-              Jour
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setViewMode("week")}
-            style={[
-              styles.switcherTab,
-              viewMode === "week" && [
-                styles.activeSwitcherTab,
-                { backgroundColor: theme.backgroundSelected },
-              ],
-            ]}
-          >
-            <ThemedText
-              type="smallBold"
-              style={{
-                color: viewMode === "week" ? theme.accent : theme.textSecondary,
-              }}
-            >
-              Semaine
-            </ThemedText>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setViewMode("list")}
-            style={[
-              styles.switcherTab,
-              viewMode === "list" && [
-                styles.activeSwitcherTab,
-                { backgroundColor: theme.backgroundSelected },
-              ],
-            ]}
-          >
-            <ThemedText
-              type="smallBold"
-              style={{
-                color: viewMode === "list" ? theme.accent : theme.textSecondary,
-              }}
-            >
-              Liste
-            </ThemedText>
-          </Pressable>
-        </GlassSurface>
+        {/* Sélecteur de vue glissant en Liquid Glass : Jour | Semaine | Liste */}
+        <SegmentedControl
+          options={VIEW_MODE_OPTIONS}
+          value={viewMode}
+          onChange={handleChangeViewMode}
+        />
 
         {/* Contenu selon la vue active */}
         {courses.length === 0 && isSyncing ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={theme.accent} />
             <ThemedText type="small" themeColor="textSecondary">
-              Chargement des cours...
+              Synchronisation du flux ICS...
             </ThemedText>
           </View>
         ) : filteredCourses.length === 0 && isFiltering ? (
-          <ThemedView type="backgroundElement" style={styles.noFilterResultsCard}>
-            <ThemedText type="default" style={styles.noResultsTitle}>
+          <View
+            style={[
+              styles.noFilterResultsCard,
+              {
+                backgroundColor: theme.cardBgSubtle,
+                borderColor: theme.cardBorder,
+              },
+            ]}
+          >
+            <SymbolView
+              name={{
+                ios: "magnifyingglass",
+                android: "search_off",
+                web: "search_off",
+              }}
+              size={26}
+              tintColor={theme.textSecondary}
+            />
+            <ThemedText type="headline" style={styles.noResultsTitle}>
               Aucun cours ne correspond aux filtres
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Essayez de modifier votre recherche ou de réinitialiser vos critères.
+            <ThemedText type="caption" themeColor="textSecondary">
+              Modifiez vos filtres pour réafficher vos cours.
             </ThemedText>
-            <Pressable
-              onPress={resetFilters}
-              style={[styles.resetFilterBtn, { backgroundColor: theme.backgroundSelected }]}
+            <PressableScale
+              haptic="none"
+              onPress={() => {
+                haptics.warning();
+                resetFilters();
+              }}
+              style={[
+                styles.resetFilterBtn,
+                { backgroundColor: accent.solidBg },
+              ]}
             >
-              <ThemedText type="smallBold">Réinitialiser les filtres</ThemedText>
-            </Pressable>
-          </ThemedView>
+              <ThemedText
+                type="smallBold"
+                style={{ color: theme.textOnAccent }}
+              >
+                Réinitialiser les filtres
+              </ThemedText>
+            </PressableScale>
+          </View>
         ) : (
           <>
             {viewMode === "day" && (
               <DayView
                 courses={filteredCourses}
                 selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
+                onSelectDate={handleSelectDate}
                 onSelectCourse={handleSelectCourse}
                 modifiedKeys={modifiedKeys}
               />
@@ -347,36 +488,33 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Modal Détail du cours */}
+      {/* Feuille détail du cours */}
       <CourseDetailModal
         course={activeCourse}
         visible={activeCourse !== null}
         onClose={() => setActiveCourse(null)}
+        onFilterBySubject={(subject) =>
+          updateCriteria({ selectedSubject: subject })
+        }
+        onHideSubject={(subject) => {
+          if (!criteria.hiddenSubjects.includes(subject)) {
+            toggleHiddenSubject(subject);
+          }
+        }}
       />
 
-      {/* Modal des Filtres */}
+      {/* Feuille des filtres */}
       <FilterModal
         visible={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
         criteria={criteria}
         availableFilters={availableFilters}
+        resultCount={filteredCourses.length}
         onUpdateCriteria={updateCriteria}
         onToggleHiddenSubject={toggleHiddenSubject}
         onResetFilters={resetFilters}
       />
-
-      {/* Modal des Notifications & Rappels */}
-      <NotificationModal
-        visible={isNotificationModalOpen}
-        onClose={() => setIsNotificationModalOpen(false)}
-        settings={notifSettings}
-        permissionGranted={permissionGranted}
-        scheduledCount={scheduledCount}
-        onUpdateSettings={updateNotifSettings}
-        onRequestPermission={requestPermission}
-        onReschedule={reschedule}
-      />
-    </ThemedView>
+    </View>
   );
 }
 
@@ -391,64 +529,72 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     width: "100%",
     alignSelf: "center",
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    gap: Spacing.two + 2,
   },
   header: {
-    paddingBottom: Spacing.two,
-    gap: Spacing.one,
+    gap: Spacing.one + 2,
   },
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: Spacing.two,
   },
-  notifBtn: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
-    alignItems: "center",
-    justifyContent: "center",
+  titleBlock: {
+    flex: 1,
   },
-  metaRow: {
+  syncMetaRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 5,
     marginTop: 2,
   },
-  staleBanner: {
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    marginTop: Spacing.one,
-  },
-  errorBanner: {
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    marginTop: Spacing.one,
-  },
-  viewSwitcher: {
+  headerActions: {
     flexDirection: "row",
-    borderRadius: Spacing.two,
-    padding: 3,
-    marginBottom: Spacing.two,
+    alignItems: "center",
+    gap: 10,
   },
-  switcherTab: {
-    flex: 1,
-    paddingVertical: Spacing.one * 1.5,
+  circleActionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: Spacing.two - 2,
   },
-  activeSwitcherTab: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
+  filterBtnWrapper: {
+    position: "relative",
+  },
+  filterCountBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    paddingHorizontal: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+  },
+  filterCountText: {
+    fontSize: 11,
+    lineHeight: 13,
+  },
+  banner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.three,
+  },
+  errorBannerText: {
+    flex: 1,
   },
   loadingContainer: {
     alignItems: "center",
@@ -457,22 +603,23 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   noFilterResultsCard: {
-    borderRadius: Spacing.three,
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.five,
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.two,
-    marginVertical: Spacing.three,
+    marginVertical: Spacing.two,
   },
   noResultsTitle: {
-    fontSize: 16,
-    fontWeight: "600",
     textAlign: "center",
   },
   resetFilterBtn: {
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
   },
 });

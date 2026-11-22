@@ -7,41 +7,70 @@ import React, {
   useState,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AppTheme, ThemeMode, Themes } from "@/constants/theme";
+import {
+  ACCENT_PRESETS,
+  type AccentPreset,
+  type AppTheme,
+  type BaseThemeMode,
+  type ThemeMode,
+  Themes,
+  resolveTheme,
+} from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const THEME_STORAGE_KEY = "app:theme_mode_v1";
+const ACCENT_STORAGE_KEY = "app:accent_preset_v1";
+
+const VALID_ACCENTS = new Set<string>(ACCENT_PRESETS.map((p) => p.key));
 
 type ThemeContextType = {
   theme: AppTheme;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => void;
+  accentPreset: AccentPreset;
+  setAccentPreset: (preset: AccentPreset) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType>({
   theme: Themes.nuit,
   themeMode: "nuit",
   setThemeMode: () => {},
+  accentPreset: "glacier",
+  setAccentPreset: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const [themeMode, setThemeModeState] = useState<ThemeMode>("nuit");
+  const [accentPreset, setAccentPresetState] = useState<AccentPreset>("glacier");
 
-  // Charger le mode de thème sauvegardé
+  // Charger le mode de thème et la couleur d'accentuation sauvegardés
   useEffect(() => {
     let mounted = true;
-    async function loadTheme() {
+    async function loadPreferences() {
       try {
-        const saved = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (saved && (saved === "nuit" || saved === "clair" || saved === "oled" || saved === "auto")) {
-          if (mounted) setThemeModeState(saved as ThemeMode);
+        const [savedMode, savedAccent] = await Promise.all([
+          AsyncStorage.getItem(THEME_STORAGE_KEY),
+          AsyncStorage.getItem(ACCENT_STORAGE_KEY),
+        ]);
+        if (
+          mounted &&
+          savedMode &&
+          (savedMode === "nuit" ||
+            savedMode === "clair" ||
+            savedMode === "oled" ||
+            savedMode === "auto")
+        ) {
+          setThemeModeState(savedMode as ThemeMode);
+        }
+        if (mounted && savedAccent && VALID_ACCENTS.has(savedAccent)) {
+          setAccentPresetState(savedAccent as AccentPreset);
         }
       } catch (e) {
         console.warn("Erreur chargement thème:", e);
       }
     }
-    loadTheme();
+    loadPreferences();
     return () => {
       mounted = false;
     };
@@ -54,16 +83,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Résoudre le thème effectif
+  const setAccentPreset = useCallback((preset: AccentPreset) => {
+    setAccentPresetState(preset);
+    AsyncStorage.setItem(ACCENT_STORAGE_KEY, preset).catch((e) => {
+      console.warn("Erreur sauvegarde accent:", e);
+    });
+  }, []);
+
+  // Résoudre le thème de base effectif puis appliquer l'échelle d'accent hiérarchisée
   const theme = useMemo<AppTheme>(() => {
-    if (themeMode === "auto") {
-      return systemScheme === "dark" ? Themes.nuit : Themes.clair;
-    }
-    return Themes[themeMode];
-  }, [themeMode, systemScheme]);
+    const resolvedBase: BaseThemeMode =
+      themeMode === "auto"
+        ? systemScheme === "dark"
+          ? "nuit"
+          : "clair"
+        : themeMode;
+    return resolveTheme(resolvedBase, accentPreset);
+  }, [themeMode, systemScheme, accentPreset]);
 
   return (
-    <ThemeContext.Provider value={{ theme, themeMode, setThemeMode }}>
+    <ThemeContext.Provider
+      value={{ theme, themeMode, setThemeMode, accentPreset, setAccentPreset }}
+    >
       {children}
     </ThemeContext.Provider>
   );
@@ -78,7 +119,7 @@ export function useTheme(): AppTheme {
 }
 
 /**
- * Hook permettant de lire et modifier le mode de thème (nuit, clair, oled, auto).
+ * Hook permettant de lire et modifier le mode de thème et la couleur d'accentuation.
  */
 export function useThemeContext(): ThemeContextType {
   return useContext(ThemeContext);

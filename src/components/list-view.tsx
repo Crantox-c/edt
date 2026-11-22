@@ -1,13 +1,21 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
+import { SymbolView } from "expo-symbols";
+import { SegmentedControl, type SegmentedOption } from "@/components/segmented-control";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
+import { useCurrentTime } from "@/hooks/use-current-time";
 import { useTheme } from "@/hooks/use-theme";
-import { formatDayHeader, getParisDateString, getTodayParisDateString } from "@/lib/dates";
+import {
+  formatDayHeaderCompact,
+  formatTotalDuration,
+  getParisDateString,
+  getTodayParisDateString,
+} from "@/lib/dates";
 import { Course } from "@/lib/ics";
 import { CourseCard } from "./course-card";
+
+type ListScope = "upcoming" | "all";
 
 export type ListViewProps = {
   courses: Course[];
@@ -15,15 +23,44 @@ export type ListViewProps = {
   modifiedKeys?: Set<string>;
 };
 
-export function ListView({ courses, onSelectCourse, modifiedKeys }: ListViewProps) {
+export function ListView({
+  courses,
+  onSelectCourse,
+  modifiedKeys,
+}: ListViewProps) {
   const theme = useTheme();
-  const glacier = theme.glacier;
+  const accent = theme.accentTiers;
+  const corail = theme.corail;
+  const nowMs = useCurrentTime();
   const todayStr = getTodayParisDateString();
+  const [scope, setScope] = useState<ListScope>("upcoming");
 
-  // Grouper les cours par date pour une liste chronologique
+  const upcomingCourses = useMemo(
+    () => courses.filter((c) => getParisDateString(c.start) >= todayStr),
+    [courses, todayStr]
+  );
+
+  const scopeOptions: readonly SegmentedOption<ListScope>[] = useMemo(
+    () => [
+      {
+        key: "upcoming",
+        label: `À venir (${upcomingCourses.length})`,
+        icon: { ios: "calendar", android: "event", web: "event" },
+      },
+      {
+        key: "all",
+        label: `Tout (${courses.length})`,
+        icon: { ios: "list.bullet", android: "list", web: "list" },
+      },
+    ],
+    [upcomingCourses.length, courses.length]
+  );
+
+  const displayedCourses = scope === "upcoming" ? upcomingCourses : courses;
+
   const sections = useMemo(() => {
     const map = new Map<string, Course[]>();
-    courses.forEach((c) => {
+    displayedCourses.forEach((c) => {
       const d = getParisDateString(c.start);
       if (!map.has(d)) map.set(d, []);
       map.get(d)!.push(c);
@@ -31,98 +68,158 @@ export function ListView({ courses, onSelectCourse, modifiedKeys }: ListViewProp
 
     return Array.from(map.entries()).map(([dateStr, list]) => ({
       dateStr,
-      title: formatDayHeader(dateStr),
+      title: formatDayHeaderCompact(dateStr),
       isToday: dateStr === todayStr,
+      hasDS: list.some(
+        (c) => c.kind === "DS" || c.title.toUpperCase().includes("_DS")
+      ),
+      duration: formatTotalDuration(list),
       data: list,
     }));
-  }, [courses, todayStr]);
-
-  if (courses.length === 0) {
-    return (
-      <ThemedView type="backgroundElement" style={styles.emptyContainer}>
-        <ThemedText type="default">Aucun cours disponible</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          Tirez vers le bas pour synchroniser.
-        </ThemedText>
-      </ThemedView>
-    );
-  }
+  }, [displayedCourses, todayStr]);
 
   return (
     <View style={styles.container}>
-      {sections.map((section) => (
-        <View key={section.dateStr} style={styles.sectionContainer}>
-          <View style={styles.sectionHeader}>
-            <ThemedText
-              type="smallBold"
-              style={[
-                styles.sectionTitle,
-                section.isToday && { color: glacier[500] },
-              ]}
-            >
-              {section.title}
-            </ThemedText>
-            {section.isToday && (
-              <View
+      {courses.length > 0 && (
+        <SegmentedControl
+          compact
+          options={scopeOptions}
+          value={scope}
+          onChange={setScope}
+        />
+      )}
+
+      {sections.length === 0 ? (
+        <View
+          style={[
+            styles.emptyContainer,
+            {
+              backgroundColor: theme.cardBgSubtle,
+              borderColor: theme.cardBorder,
+            },
+          ]}
+        >
+          <SymbolView
+            name={{ ios: "calendar", android: "event", web: "event" }}
+            size={28}
+            tintColor={theme.textMuted}
+          />
+          <ThemedText type="headline" style={styles.emptyTitle}>
+            {scope === "upcoming" && courses.length > 0
+              ? "Aucun cours à venir"
+              : "Aucun cours disponible"}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {scope === "upcoming" && courses.length > 0
+              ? "Basculez sur « Tout » pour consulter l'historique."
+              : "Tirez vers le bas pour synchroniser."}
+          </ThemedText>
+        </View>
+      ) : (
+        sections.map((section) => (
+          <View key={section.dateStr} style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <ThemedText
+                type="smallBold"
                 style={[
-                  styles.todayBadge,
-                  { backgroundColor: glacier[100] },
+                  styles.sectionTitle,
+                  section.isToday && { color: accent.primary },
                 ]}
               >
-                <ThemedText
-                  type="smallBold"
-                  style={{ color: glacier[700], fontSize: 10 }}
-                >
-                  {"Aujourd'hui"}
-                </ThemedText>
-              </View>
-            )}
-            <ThemedText
-              type="small"
-              themeColor="textSecondary"
-              style={styles.sectionCount}
-            >
-              {section.data.length} cours
-            </ThemedText>
-          </View>
+                {section.title}
+              </ThemedText>
 
-          <GlassSurfaceContainer spacing={Spacing.two} style={styles.coursesGroup}>
-            {section.data.map((course) => (
-              <CourseCard
-                key={course.key}
-                course={course}
-                isModified={modifiedKeys?.has(course.key)}
-                onPress={() => onSelectCourse(course)}
-              />
-            ))}
-          </GlassSurfaceContainer>
-        </View>
-      ))}
+              {section.isToday && (
+                <View
+                  style={[
+                    styles.badgePill,
+                    { backgroundColor: accent.softBg },
+                  ]}
+                >
+                  <ThemedText
+                    type="captionBold"
+                    style={[styles.badgeText, { color: accent.text }]}
+                  >
+                    {"Aujourd'hui"}
+                  </ThemedText>
+                </View>
+              )}
+
+              {section.hasDS && (
+                <View
+                  style={[
+                    styles.badgePill,
+                    { backgroundColor: corail[100] },
+                  ]}
+                >
+                  <ThemedText
+                    type="captionBold"
+                    style={[styles.badgeText, { color: corail[700] }]}
+                  >
+                    DS
+                  </ThemedText>
+                </View>
+              )}
+
+              <ThemedText
+                type="caption"
+                themeColor="textSecondary"
+                style={styles.sectionCount}
+              >
+                {section.data.length} cours • {section.duration}
+              </ThemedText>
+            </View>
+
+            <View style={styles.coursesGroup}>
+              {section.data.map((course) => (
+                <CourseCard
+                  key={course.key}
+                  course={course}
+                  isModified={modifiedKeys?.has(course.key)}
+                  isActive={
+                    section.isToday &&
+                    nowMs >= course.start &&
+                    nowMs < course.end
+                  }
+                  isPast={nowMs >= course.end}
+                  nowMs={nowMs}
+                  onPress={() => onSelectCourse(course)}
+                />
+              ))}
+            </View>
+          </View>
+        ))
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: Spacing.three,
+    gap: Spacing.two + 4,
   },
   sectionContainer: {
-    gap: Spacing.one,
+    gap: Spacing.one + 2,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.one,
+    gap: 6,
     paddingHorizontal: 2,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   sectionTitle: {
     fontSize: 15,
   },
-  todayBadge: {
-    paddingHorizontal: Spacing.one * 1.5,
-    paddingVertical: 1,
-    borderRadius: Spacing.one,
+  badgePill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+  },
+  badgeText: {
+    fontSize: 10,
+    lineHeight: 14,
   },
   sectionCount: {
     marginLeft: "auto",
@@ -131,10 +228,15 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   emptyContainer: {
-    borderRadius: Spacing.three,
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.five,
     alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.two,
+    gap: Spacing.one + 2,
+  },
+  emptyTitle: {
+    marginTop: 4,
   },
 });

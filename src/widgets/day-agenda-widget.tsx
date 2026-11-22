@@ -1,0 +1,318 @@
+import {
+  HStack,
+  Image,
+  RoundedRectangle,
+  Spacer,
+  Text,
+  VStack,
+} from "@expo/ui/swift-ui";
+import {
+  background,
+  border,
+  containerBackground,
+  font,
+  foregroundStyle,
+  frame,
+  lineLimit,
+  minimumScaleFactor,
+  monospacedDigit,
+  padding,
+  shapes,
+  widgetURL,
+} from "@expo/ui/swift-ui/modifiers";
+import { createWidget, type WidgetEnvironment } from "expo-widgets";
+
+import type { DayAgendaWidgetProps } from "@/lib/widget-timeline";
+
+const DayAgendaWidget = createWidget<DayAgendaWidgetProps>(
+  "DayAgendaWidget",
+  (props: DayAgendaWidgetProps, environment: WidgetEnvironment) => {
+    "widget";
+
+    const isLight = environment?.colorScheme === "light";
+    const palette = isLight ? props.paletteLight : props.paletteDark;
+    const isTinted = environment?.widgetRenderingMode === "accented";
+    const rows = props.rows ?? [];
+
+    return (
+      <VStack
+        alignment="leading"
+        spacing={6}
+        modifiers={[
+          frame({
+            maxWidth: Infinity,
+            maxHeight: Infinity,
+            alignment: "topLeading",
+          }),
+          containerBackground(
+            {
+              type: "linearGradient",
+              colors: [palette.bgStart, palette.bgEnd],
+              startPoint: { x: 0, y: 0 },
+              endPoint: { x: 1, y: 1 },
+            },
+            "widget"
+          ),
+          widgetURL("geiiedt://"),
+        ]}
+      >
+        <HStack alignment="center" spacing={6}>
+          <Image systemName="calendar" size={13} color={palette.accent} />
+          <Text
+            modifiers={[
+              font({ size: 13, weight: "bold", design: "rounded" }),
+              lineLimit(1),
+              minimumScaleFactor(0.82),
+              foregroundStyle(
+                isTinted
+                  ? { type: "hierarchical", style: "primary" }
+                  : palette.textPrimary
+              ),
+            ]}
+          >
+            {props.dayLabel}
+          </Text>
+          <Spacer />
+          {rows.length > 0 && (
+            <Text
+              modifiers={[
+                font({ size: 10, weight: "bold", design: "monospaced" }),
+                monospacedDigit(),
+                lineLimit(1),
+                foregroundStyle(
+                  isTinted
+                    ? { type: "hierarchical", style: "primary" }
+                    : palette.accentText
+                ),
+                padding({ horizontal: 8, vertical: 3 }),
+                background(
+                  palette.accentSoft,
+                  shapes.capsule({ roundedCornerStyle: "continuous" })
+                ),
+              ]}
+            >
+              {props.totalDuration}
+            </Text>
+          )}
+        </HStack>
+
+        {rows.length > 0 ? (
+          <VStack alignment="leading" spacing={4}>
+            {rows.map((row) => {
+              const rowAccent = isLight ? row.accentLight : row.accentDark;
+              const rowBadgeBg = isLight
+                ? row.badgeBgLight
+                : row.badgeBgDark;
+              const rowBadgeText = isLight
+                ? row.badgeTextLight
+                : row.badgeTextDark;
+
+              const badgeLabel = row.isActive
+                ? "EN COURS"
+                : row.isDS
+                  ? "DS"
+                  : row.kind;
+              const badgeBg = row.isActive
+                ? palette.liveSoft
+                : row.isDS
+                  ? palette.dsSoft
+                  : rowBadgeBg;
+              const badgeText = row.isActive
+                ? palette.liveText
+                : row.isDS
+                  ? palette.dsText
+                  : rowBadgeText;
+
+              return (
+                <HStack
+                  key={row.key}
+                  alignment="center"
+                  spacing={7}
+                  modifiers={[
+                    padding({ horizontal: 8, vertical: 5 }),
+                    frame({ maxWidth: Infinity, alignment: "leading" }),
+                    background(
+                      palette.surface,
+                      shapes.roundedRectangle({
+                        cornerRadius: 10,
+                        roundedCornerStyle: "continuous",
+                      })
+                    ),
+                    border({
+                      content: row.isActive
+                        ? palette.liveAccent
+                        : palette.border,
+                      width: row.isActive ? 1 : 0.5,
+                    }),
+                  ]}
+                >
+                  <RoundedRectangle
+                    cornerRadius={2}
+                    modifiers={[
+                      foregroundStyle(
+                        row.isActive ? palette.liveAccent : rowAccent
+                      ),
+                      frame({ width: 3, height: 24 }),
+                    ]}
+                  />
+
+                  <VStack
+                    alignment="leading"
+                    spacing={0}
+                    modifiers={[frame({ width: 36, alignment: "leading" })]}
+                  >
+                    <Text
+                      modifiers={[
+                        font({
+                          size: 11,
+                          weight: "bold",
+                          design: "monospaced",
+                        }),
+                        monospacedDigit(),
+                        lineLimit(1),
+                        foregroundStyle(
+                          row.isActive
+                            ? palette.liveAccent
+                            : isTinted
+                              ? { type: "hierarchical", style: "primary" }
+                              : palette.textPrimary
+                        ),
+                      ]}
+                    >
+                      {row.startLabel}
+                    </Text>
+                    <Text
+                      modifiers={[
+                        font({
+                          size: 9,
+                          weight: "medium",
+                          design: "monospaced",
+                        }),
+                        monospacedDigit(),
+                        lineLimit(1),
+                        foregroundStyle(palette.textMuted),
+                      ]}
+                    >
+                      {row.endLabel}
+                    </Text>
+                  </VStack>
+
+                  <VStack alignment="leading" spacing={1}>
+                    <Text
+                      modifiers={[
+                        font({ size: 12, weight: "bold", design: "rounded" }),
+                        lineLimit(1),
+                        minimumScaleFactor(0.85),
+                        foregroundStyle(
+                          isTinted
+                            ? { type: "hierarchical", style: "primary" }
+                            : palette.textPrimary
+                        ),
+                      ]}
+                    >
+                      {row.title}
+                    </Text>
+                    <Text
+                      modifiers={[
+                        font({ size: 10, weight: "medium" }),
+                        lineLimit(1),
+                        minimumScaleFactor(0.85),
+                        foregroundStyle(
+                          isTinted
+                            ? { type: "hierarchical", style: "secondary" }
+                            : palette.textSecondary
+                        ),
+                      ]}
+                    >
+                      {row.room}
+                    </Text>
+                  </VStack>
+
+                  <Spacer minLength={2} />
+
+                  {badgeLabel && (
+                    <Text
+                      modifiers={[
+                        font({ size: 9, weight: "bold", design: "rounded" }),
+                        lineLimit(1),
+                        foregroundStyle(badgeText),
+                        padding({ horizontal: 6, vertical: 2 }),
+                        background(
+                          badgeBg,
+                          shapes.capsule({ roundedCornerStyle: "continuous" })
+                        ),
+                      ]}
+                    >
+                      {badgeLabel}
+                    </Text>
+                  )}
+                </HStack>
+              );
+            })}
+          </VStack>
+        ) : (
+          <VStack
+            alignment="center"
+            spacing={4}
+            modifiers={[
+              frame({
+                maxWidth: Infinity,
+                maxHeight: Infinity,
+                alignment: "center",
+              }),
+            ]}
+          >
+            <Image systemName="sun.max.fill" size={24} color={palette.accent} />
+            <Text
+              modifiers={[
+                font({ size: 14, weight: "bold", design: "rounded" }),
+                foregroundStyle(palette.textPrimary),
+              ]}
+            >
+              Journée libre
+            </Text>
+            <Text
+              modifiers={[
+                font({ size: 11, weight: "medium" }),
+                foregroundStyle(palette.textSecondary),
+              ]}
+            >
+              Aucun cours programmé
+            </Text>
+          </VStack>
+        )}
+
+        <Spacer minLength={0} />
+
+        <HStack alignment="center" spacing={6}>
+          <Text
+            modifiers={[
+              font({ size: 10, weight: "semibold", design: "rounded" }),
+              lineLimit(1),
+              foregroundStyle(palette.textSecondary),
+            ]}
+          >
+            {props.extraCount > 0
+              ? `+${props.extraCount} autre${props.extraCount > 1 ? "s" : ""}`
+              : props.isToday
+                ? "Aujourd'hui"
+                : "Prochaine journée"}
+          </Text>
+          <Spacer />
+          <Text
+            modifiers={[
+              font({ size: 9, weight: "medium", design: "monospaced" }),
+              monospacedDigit(),
+              lineLimit(1),
+              foregroundStyle(palette.textMuted),
+            ]}
+          >
+            {props.updatedAtLabel}
+          </Text>
+        </HStack>
+      </VStack>
+    );
+  }
+);
+
+export default DayAgendaWidget;

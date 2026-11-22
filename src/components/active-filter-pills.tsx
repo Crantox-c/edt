@@ -1,9 +1,11 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet } from "react-native";
+import { SymbolView } from "expo-symbols";
 import { ThemedText } from "@/components/themed-text";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { FilterCriteria } from "@/lib/filters";
+import { haptics } from "@/lib/haptics";
 
 export type ActiveFilterPillsProps = {
   criteria: FilterCriteria;
@@ -29,7 +31,7 @@ export function ActiveFilterPills({
   onClearAll,
 }: ActiveFilterPillsProps) {
   const theme = useTheme();
-  const glacier = theme.glacier;
+  const accentScale = theme.accentScale;
   const ambre = theme.ambre;
   const corail = theme.corail;
 
@@ -44,113 +46,86 @@ export function ActiveFilterPills({
 
   if (!hasAnyFilter) return null;
 
+  const renderPill = (
+    label: string,
+    onPress: () => void,
+    scale = accentScale
+  ) => (
+    <Pressable
+      onPress={() => {
+        haptics.selection();
+        onPress();
+      }}
+      style={[
+        styles.pill,
+        { backgroundColor: scale[100], borderColor: scale[300] },
+      ]}
+    >
+      <ThemedText
+        type="captionBold"
+        style={{ color: scale[700] }}
+      >
+        {label}
+      </ThemedText>
+      <SymbolView
+        name={{ ios: "xmark", android: "close", web: "close" }}
+        size={10}
+        weight="bold"
+        tintColor={scale[700]}
+      />
+    </Pressable>
+  );
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
-      {criteria.selectedPromo && (
-        <Pressable
-          onPress={onClearPromo}
-          style={[
-            styles.pill,
-            { backgroundColor: glacier[50], borderColor: glacier[300] },
-          ]}
-        >
-          <ThemedText type="small" style={{ color: glacier[700] }}>
-            Promo: {criteria.selectedPromo} ✕
-          </ThemedText>
-        </Pressable>
-      )}
+      {criteria.selectedPromo &&
+        renderPill(`Promo: ${criteria.selectedPromo}`, onClearPromo)}
 
-      {criteria.selectedKind && (
-        <Pressable
-          onPress={onClearKind}
-          style={[
-            styles.pill,
-            { backgroundColor: glacier[50], borderColor: glacier[300] },
-          ]}
-        >
-          <ThemedText type="small" style={{ color: glacier[700] }}>
-            Type: {criteria.selectedKind} ✕
-          </ThemedText>
-        </Pressable>
-      )}
+      {criteria.selectedKind &&
+        renderPill(`Type: ${criteria.selectedKind}`, onClearKind)}
 
-      {criteria.selectedSubject && (
-        <Pressable
-          onPress={onClearSubject}
-          style={[
-            styles.pill,
-            { backgroundColor: glacier[50], borderColor: glacier[300] },
-          ]}
-        >
-          <ThemedText type="small" style={{ color: glacier[700] }}>
-            Matière: {criteria.selectedSubject} ✕
-          </ThemedText>
-        </Pressable>
-      )}
+      {criteria.selectedSubject &&
+        renderPill(`Matière: ${criteria.selectedSubject}`, onClearSubject)}
 
-      {criteria.selectedTag && (
-        <Pressable
-          onPress={onClearTag}
-          style={[
-            styles.pill,
-            { backgroundColor: glacier[50], borderColor: glacier[300] },
-          ]}
-        >
-          <ThemedText type="small" style={{ color: glacier[700] }}>
-            Tag: {criteria.selectedTag} ✕
-          </ThemedText>
-        </Pressable>
-      )}
+      {criteria.selectedTag &&
+        renderPill(`Tag: ${criteria.selectedTag}`, onClearTag)}
 
-      {criteria.selectedFloor && (
-        <Pressable
-          onPress={onClearFloor}
-          style={[
-            styles.pill,
-            { backgroundColor: glacier[50], borderColor: glacier[300] },
-          ]}
-        >
-          <ThemedText type="small" style={{ color: glacier[700] }}>
-            Étage: {criteria.selectedFloor === "0" ? "RDC" : `${criteria.selectedFloor}e`} ✕
-          </ThemedText>
-        </Pressable>
-      )}
+      {criteria.selectedFloor &&
+        renderPill(
+          `Étage: ${
+            criteria.selectedFloor === "0"
+              ? "RDC"
+              : `${criteria.selectedFloor}e`
+          }`,
+          onClearFloor
+        )}
 
-      {criteria.selectedRoom && (
-        <Pressable
-          onPress={onClearRoom}
-          style={[
-            styles.pill,
-            { backgroundColor: glacier[50], borderColor: glacier[300] },
-          ]}
-        >
-          <ThemedText type="small" style={{ color: glacier[700] }}>
-            Salle: {criteria.selectedRoom} ✕
-          </ThemedText>
-        </Pressable>
-      )}
+      {criteria.selectedRoom &&
+        renderPill(`Salle: ${criteria.selectedRoom}`, onClearRoom)}
 
-      {criteria.hiddenSubjects.length > 0 && (
-        <Pressable
-          onPress={onClearHiddenSubjects}
-          style={[
-            styles.pill,
-            { backgroundColor: ambre[50], borderColor: ambre[300] },
-          ]}
-        >
-          <ThemedText type="small" style={{ color: ambre[700] }}>
-            {criteria.hiddenSubjects.length} masquée(s) ✕
-          </ThemedText>
-        </Pressable>
-      )}
+      {criteria.hiddenSubjects.length > 0 &&
+        renderPill(
+          `${criteria.hiddenSubjects.length} masquée(s)`,
+          onClearHiddenSubjects,
+          ambre
+        )}
 
-      <Pressable onPress={onClearAll} style={styles.clearAllBtn}>
-        <ThemedText type="smallBold" style={{ color: corail[600], fontSize: 12 }}>
-          Effacer tout
+      <Pressable
+        onPress={() => {
+          haptics.warning();
+          onClearAll();
+        }}
+        style={styles.clearAllBtn}
+      >
+        <ThemedText
+          type="captionBold"
+          style={{ color: corail[700] }}
+        >
+          Tout effacer
         </ThemedText>
       </Pressable>
     </ScrollView>
@@ -161,17 +136,21 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.one,
-    paddingBottom: Spacing.one,
+    gap: 6,
+    paddingVertical: 2,
   },
   pill: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
-    borderRadius: Spacing.one * 1.5,
-    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: Spacing.two + 3,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   clearAllBtn: {
     paddingHorizontal: Spacing.two,
-    paddingVertical: 3,
+    paddingVertical: 4,
   },
 });
