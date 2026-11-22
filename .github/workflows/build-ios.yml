@@ -1,7 +1,7 @@
 name: Build Unsigned iOS IPA
 
 on:
-  workflow_dispatch: # Lets you trigger builds manually with a button
+  workflow_dispatch: {} # Lets you trigger builds manually with a button
 
 jobs:
   build-ios:
