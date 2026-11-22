@@ -1,12 +1,13 @@
 {
   "expo": {
-    "name": "GEII EDT",
+    "name": "EDT",
     "slug": "monapp2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "geiiedt",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#000000",
     "ios": {
       "bundleIdentifier": "com.km.geiiedt",
       "icon": {
@@ -34,9 +35,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#000000",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#000000"
+          }
         }
       ],
       [
@@ -61,7 +67,16 @@
                 "accessoryCircular",
                 "accessoryRectangular",
                 "accessoryInline"
-              ]
+              ],
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "accessoryCircular",
+                  "accessoryRectangular",
+                  "accessoryInline"
+                ],
+                "initialLayout": "./src/widgets/next-course-widget.tsx"
+              }
             },
             {
               "name": "DayAgendaWidget",
@@ -69,7 +84,13 @@
               "description": "Programme détaillé de votre journée avec horaires, salles et badges.",
               "supportedFamilies": [
                 "systemMedium"
-              ]
+              ],
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium"
+                ],
+                "initialLayout": "./src/widgets/day-agenda-widget.tsx"
+              }
             },
             {
               "name": "WeekOverviewWidget",
@@ -77,7 +98,13 @@
               "description": "Charge hebdomadaire, prochains créneaux et alerte DS.",
               "supportedFamilies": [
                 "systemLarge"
-              ]
+              ],
+              "ios": {
+                "supportedFamilies": [
+                  "systemLarge"
+                ],
+                "initialLayout": "./src/widgets/week-overview-widget.tsx"
+              }
             }
           ]
         }

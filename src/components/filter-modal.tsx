@@ -11,8 +11,11 @@ import { SymbolView } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { AmbientBackground } from "@/components/ui/ambient-background";
-import { GlassSurface } from "@/components/ui/glass-surface";
-import { PressableScale } from "@/components/ui/pressable-scale";
+import { GlassButton } from "@/components/ui/glass-button";
+import {
+  GlassSurface,
+  GlassSurfaceContainer,
+} from "@/components/ui/glass-surface";
 import { Radius, Spacing, getSubjectTint } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { AvailableFilters, FilterCriteria } from "@/lib/filters";
@@ -107,8 +110,11 @@ export function FilterModal({
               Filtres
             </ThemedText>
 
-            <View style={styles.headerActions}>
-              <Pressable
+            <GlassSurfaceContainer spacing={8} style={styles.headerActions}>
+              <GlassButton
+                haptic="none"
+                tintColor={theme.backgroundSelected}
+                borderColor={theme.border}
                 onPress={() => {
                   haptics.warning();
                   onResetFilters();
@@ -119,7 +125,7 @@ export function FilterModal({
                 <ThemedText type="smallBold" style={{ color: corail[700] }}>
                   Réinitialiser
                 </ThemedText>
-              </Pressable>
+              </GlassButton>
 
               <Pressable
                 onPress={() => {
@@ -146,12 +152,13 @@ export function FilterModal({
                   />
                 </GlassSurface>
               </Pressable>
-            </View>
+            </GlassSurfaceContainer>
           </View>
         </View>
 
         <ScrollView
           style={styles.scroll}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
           {availableFilters.promos.length > 0 && (
@@ -411,20 +418,19 @@ export function FilterModal({
             },
           ]}
         >
-          <PressableScale
+          <GlassButton
             haptic="soft"
+            tintColor={theme.accentTiers.solidBg}
+            borderColor={theme.accentTiers.primary}
             onPress={onClose}
-            style={[
-              styles.applyFooterBtn,
-              { backgroundColor: theme.accentTiers.solidBg },
-            ]}
+            style={styles.applyFooterBtn}
           >
             <ThemedText type="headline" style={{ color: theme.textOnAccent }}>
               {resultCount !== undefined
                 ? `Afficher ${resultCount} cours`
                 : "Appliquer les filtres"}
             </ThemedText>
-          </PressableScale>
+          </GlassButton>
         </View>
       </View>
     </Modal>
@@ -464,12 +470,14 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   resetBtn: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one + 2,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
   },
   closeCircle: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
     alignItems: "center",

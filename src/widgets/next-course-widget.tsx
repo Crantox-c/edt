@@ -34,9 +34,146 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
   (props: NextCourseWidgetProps, environment: WidgetEnvironment) => {
     "widget";
 
+    const family = environment?.widgetFamily ?? "systemSmall";
+    if (!props?.paletteDark || !props?.paletteLight) {
+      if (family === "accessoryInline") {
+        return (
+          <HStack
+            spacing={4}
+            modifiers={[
+              containerBackground("clear", "widget"),
+              widgetURL("geiiedt://"),
+            ]}
+          >
+            <Image systemName="calendar" />
+            <Text modifiers={[lineLimit(1)]}>GEII EDT · Ouvrir l&apos;app</Text>
+          </HStack>
+        );
+      }
+      if (family === "accessoryCircular") {
+        return (
+          <ZStack
+            alignment="center"
+            modifiers={[
+              containerBackground("clear", "widget"),
+              widgetURL("geiiedt://"),
+            ]}
+          >
+            <AccessoryWidgetBackground />
+            <VStack alignment="center" spacing={1}>
+              <Text
+                modifiers={[
+                  font({ size: 11, weight: "bold", design: "rounded" }),
+                  lineLimit(1),
+                  foregroundStyle({ type: "hierarchical", style: "primary" }),
+                ]}
+              >
+                GEII
+              </Text>
+              <Text
+                modifiers={[
+                  font({ size: 8, weight: "semibold", design: "rounded" }),
+                  lineLimit(1),
+                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
+                ]}
+              >
+                EDT
+              </Text>
+            </VStack>
+          </ZStack>
+        );
+      }
+      if (family === "accessoryRectangular") {
+        return (
+          <VStack
+            alignment="leading"
+            spacing={2}
+            modifiers={[
+              frame({
+                maxWidth: Infinity,
+                maxHeight: Infinity,
+                alignment: "leading",
+              }),
+              containerBackground("clear", "widget"),
+              widgetURL("geiiedt://"),
+            ]}
+          >
+            <Text
+              modifiers={[
+                font({ size: 12, weight: "bold", design: "rounded" }),
+                lineLimit(1),
+                foregroundStyle({ type: "hierarchical", style: "primary" }),
+              ]}
+            >
+              GEII EDT
+            </Text>
+            <Text
+              modifiers={[
+                font({ size: 11, weight: "medium" }),
+                lineLimit(2),
+                foregroundStyle({ type: "hierarchical", style: "secondary" }),
+              ]}
+            >
+              Ouvrez l&apos;app pour synchroniser
+            </Text>
+          </VStack>
+        );
+      }
+      return (
+        <VStack
+          alignment="leading"
+          spacing={6}
+          modifiers={[
+            frame({
+              maxWidth: Infinity,
+              maxHeight: Infinity,
+              alignment: "topLeading",
+            }),
+            containerBackground(
+              { type: "material", material: "regular" },
+              "widget"
+            ),
+            widgetURL("geiiedt://"),
+          ]}
+        >
+          <HStack alignment="center" spacing={5}>
+            <Image systemName="calendar" size={13} />
+            <Text
+              modifiers={[
+                font({ size: 12, weight: "bold", design: "rounded" }),
+                lineLimit(1),
+                foregroundStyle({ type: "hierarchical", style: "secondary" }),
+              ]}
+            >
+              GEII EDT
+            </Text>
+          </HStack>
+          <Spacer minLength={2} />
+          <Text
+            modifiers={[
+              font({ size: 14, weight: "bold", design: "rounded" }),
+              lineLimit(2),
+              foregroundStyle({ type: "hierarchical", style: "primary" }),
+            ]}
+          >
+            Prochain cours
+          </Text>
+          <Text
+            modifiers={[
+              font({ size: 11, weight: "medium" }),
+              lineLimit(2),
+              foregroundStyle({ type: "hierarchical", style: "secondary" }),
+            ]}
+          >
+            Ouvrez l&apos;app pour synchroniser
+          </Text>
+          <Spacer minLength={0} />
+        </VStack>
+      );
+    }
+
     const isLight = environment?.colorScheme === "light";
     const palette = isLight ? props.paletteLight : props.paletteDark;
-    const family = environment?.widgetFamily ?? "systemSmall";
     const isTinted = environment?.widgetRenderingMode === "accented";
 
     const course = props.course;

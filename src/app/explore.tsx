@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollViewMarker } from "react-native-screens/experimental";
 import { SymbolView } from "expo-symbols";
 
 import { AccentSwitcher } from "@/components/accent-switcher";
@@ -19,14 +20,15 @@ import {
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { ThemedText } from "@/components/themed-text";
 import { AmbientBackground } from "@/components/ui/ambient-background";
-import { PressableScale } from "@/components/ui/pressable-scale";
+import { GlassButton } from "@/components/ui/glass-button";
+import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
 import {
-  BottomTabInset,
   FontFamilies,
   MaxContentWidth,
   Radius,
   Spacing,
   getCourseColorTokens,
+  getTabScrollPaddingBottom,
 } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
 import {
@@ -46,7 +48,7 @@ import {
 } from "@/lib/subject-names";
 import { DEFAULT_ICS_URL } from "@/lib/sync";
 import {
-  getLastWidgetSyncSnapshot,
+  getWidgetSyncStatusSnapshot,
   isWidgetsAvailable,
   subscribeWidgetSync,
 } from "@/lib/widget-sync";
@@ -127,10 +129,10 @@ export default function SettingsScreen() {
     getSubjectDictionarySnapshot
   );
 
-  const lastWidgetSyncAt = useSyncExternalStore(
+  const widgetStatus = useSyncExternalStore(
     subscribeWidgetSync,
-    getLastWidgetSyncSnapshot,
-    getLastWidgetSyncSnapshot
+    getWidgetSyncStatusSnapshot,
+    getWidgetSyncStatusSnapshot
   );
   const widgetsReady = isWidgetsAvailable();
 
@@ -207,20 +209,24 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <AmbientBackground />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Platform.OS === "ios" ? Spacing.one : insets.top + Spacing.two,
-            paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
+      <ScrollViewMarker
+        style={[styles.scrollView, styles.scrollLayer]}
+        scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
       >
+        <ScrollView
+          style={styles.scrollView}
+          contentInsetAdjustmentBehavior="automatic"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop:
+                Platform.OS === "ios" ? Spacing.one : insets.top + Spacing.two,
+              paddingBottom: getTabScrollPaddingBottom(insets.bottom),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <ThemedText type="overline" themeColor="accent">
             Préférences & Bilan
@@ -447,15 +453,18 @@ export default function SettingsScreen() {
               ]}
             />
 
-            <View style={styles.actionRow}>
-              <PressableScale
+            <GlassSurfaceContainer spacing={8} style={styles.actionRow}>
+              <GlassButton
                 haptic="toggle"
+                tintColor={accent.solidBg}
+                borderColor={accent.primary}
                 onPress={() => {
                   const target = urlValue;
                   setEditedUrl(null);
                   updateUrl(target);
                 }}
-                style={[styles.primaryBtn, { backgroundColor: accent.solidBg }]}
+                containerStyle={styles.primaryBtnContainer}
+                style={styles.primaryBtn}
               >
                 <SymbolView
                   name={{
@@ -472,21 +481,20 @@ export default function SettingsScreen() {
                 >
                   {isSyncing ? "Synchro..." : "Appliquer & Synchroniser"}
                 </ThemedText>
-              </PressableScale>
+              </GlassButton>
 
-              <PressableScale
+              <GlassButton
                 haptic="toggle"
+                tintColor={theme.backgroundSelected}
+                borderColor={theme.border}
                 onPress={refresh}
-                style={[
-                  styles.secondaryBtn,
-                  { backgroundColor: theme.backgroundSelected },
-                ]}
+                style={styles.secondaryBtn}
               >
                 <ThemedText type="captionBold">
                   Rafraîchir
                 </ThemedText>
-              </PressableScale>
-            </View>
+              </GlassButton>
+            </GlassSurfaceContainer>
           </View>
 
           {/* 3. Notifications & Rappels */}
@@ -643,18 +651,17 @@ export default function SettingsScreen() {
                   />
                 </View>
 
-                <PressableScale
+                <GlassButton
                   haptic="none"
+                  tintColor={theme.backgroundSelected}
+                  borderColor={theme.border}
                   onPress={handleReschedule}
-                  style={[
-                    styles.secondaryBtn,
-                    { backgroundColor: theme.backgroundSelected },
-                  ]}
+                  style={styles.secondaryBtn}
                 >
                   <ThemedText type="captionBold">
                     Reprogrammer les notifications maintenant
                   </ThemedText>
-                </PressableScale>
+                </GlassButton>
               </>
             )}
           </View>
@@ -718,23 +725,43 @@ export default function SettingsScreen() {
               ))}
             </View>
 
-            <PressableScale
+            <GlassButton
               haptic="none"
+              tintColor={theme.backgroundSelected}
+              borderColor={theme.border}
               onPress={handleSyncWidgets}
-              style={[
-                styles.secondaryBtn,
-                { backgroundColor: theme.backgroundSelected },
-              ]}
+              style={styles.secondaryBtn}
             >
               <ThemedText type="captionBold">
                 Synchroniser les widgets
               </ThemedText>
-            </PressableScale>
+            </GlassButton>
 
-            {lastWidgetSyncAt !== null && (
+            {widgetStatus.lastSyncAt !== null && (
               <ThemedText type="caption" themeColor="textSecondary">
-                Dernière synchronisation widget : {formatTime(lastWidgetSyncAt)}
+                Dernière synchronisation widget :{" "}
+                {formatTime(widgetStatus.lastSyncAt)} ·{" "}
+                {widgetStatus.entryCount} entrées
               </ThemedText>
+            )}
+
+            {widgetStatus.lastError !== null && (
+              <View
+                style={[
+                  styles.permBanner,
+                  {
+                    backgroundColor: corail[100],
+                    borderColor: corail[500],
+                  },
+                ]}
+              >
+                <ThemedText
+                  type="captionBold"
+                  style={{ color: corail[700] }}
+                >
+                  Erreur widget : {widgetStatus.lastError}
+                </ThemedText>
+              </View>
             )}
 
             {!widgetsReady && (
@@ -805,10 +832,12 @@ export default function SettingsScreen() {
                   },
                 ]}
               />
-              <PressableScale
+              <GlassButton
                 haptic="none"
+                tintColor={accent.solidBg}
+                borderColor={accent.primary}
                 onPress={handleAddSubjectMapping}
-                style={[styles.addBtn, { backgroundColor: accent.solidBg }]}
+                style={styles.addBtn}
               >
                 <SymbolView
                   name={{ ios: "plus", android: "add", web: "add" }}
@@ -816,7 +845,7 @@ export default function SettingsScreen() {
                   weight="bold"
                   tintColor={theme.textOnAccent}
                 />
-              </PressableScale>
+              </GlassButton>
             </View>
 
             <View style={styles.chipsRow}>
@@ -920,7 +949,10 @@ export default function SettingsScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </ScrollViewMarker>
+
+      <AmbientBackground />
     </View>
   );
 }
@@ -931,6 +963,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollLayer: {
+    zIndex: 1,
   },
   content: {
     maxWidth: MaxContentWidth,
@@ -1020,13 +1055,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.two,
   },
-  primaryBtn: {
+  primaryBtnContainer: {
     flex: 1,
+  },
+  primaryBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     paddingVertical: 11,
+    paddingHorizontal: Spacing.three,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
   },

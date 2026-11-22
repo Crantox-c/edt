@@ -8,11 +8,11 @@ import {
 } from "react-native";
 import { SymbolView } from "expo-symbols";
 import { ThemedText } from "@/components/themed-text";
+import { GlassButton } from "@/components/ui/glass-button";
 import {
   GlassSurface,
   GlassSurfaceContainer,
 } from "@/components/ui/glass-surface";
-import { PressableScale } from "@/components/ui/pressable-scale";
 import {
   MaxContentWidth,
   Radius,
@@ -354,11 +354,12 @@ export function WeekView({
           </Pressable>
         </GlassSurface>
 
-        <PressableScale
-          haptic="none"
+        <Pressable
           onPress={handleToggleDisplayMode}
           accessibilityLabel={
-            displayMode === "grid" ? "Passer en vue agenda" : "Passer en vue grille"
+            displayMode === "grid"
+              ? "Passer en vue agenda"
+              : "Passer en vue grille"
           }
         >
           <GlassSurface
@@ -366,8 +367,8 @@ export function WeekView({
             isInteractive={true}
             style={styles.modeToggleBtn}
             fallbackStyle={{
-              backgroundColor: theme.backgroundElement,
-              borderColor: theme.border,
+              backgroundColor: theme.cardBg,
+              borderColor: theme.cardBorder,
             }}
           >
             <SymbolView
@@ -384,16 +385,17 @@ export function WeekView({
               tintColor={theme.accent}
             />
           </GlassSurface>
-        </PressableScale>
+        </Pressable>
       </GlassSurfaceContainer>
 
       {!isCurrentWeek && (
-        <Pressable
+        <GlassButton
+          haptic="none"
+          tintColor={accent.solidBg}
+          borderColor={accent.primary}
           onPress={handleThisWeek}
-          style={[
-            styles.thisWeekPill,
-            { backgroundColor: accent.softBg, borderColor: accent.border },
-          ]}
+          containerStyle={styles.thisWeekContainer}
+          style={styles.thisWeekPill}
         >
           <SymbolView
             name={{
@@ -402,15 +404,15 @@ export function WeekView({
               web: "today",
             }}
             size={11}
-            tintColor={accent.text}
+            tintColor={theme.textOnAccent}
           />
           <ThemedText
             type="captionBold"
-            style={{ color: accent.text }}
+            style={{ color: theme.textOnAccent }}
           >
             Revenir à cette semaine
           </ThemedText>
-        </Pressable>
+        </GlassButton>
       )}
 
       {displayMode === "grid" ? (
@@ -902,16 +904,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  thisWeekPill: {
+  thisWeekContainer: {
     alignSelf: "center",
+  },
+  thisWeekPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
-    borderWidth: StyleSheet.hairlineWidth,
   },
   gridOuterCard: {
     borderRadius: Radius.xxl,

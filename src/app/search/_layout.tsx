@@ -12,7 +12,7 @@ export default function SearchStackLayout() {
         headerLargeTitleEnabled: true,
         headerTransparent: Platform.OS === "ios",
         headerShadowVisible: false,
-        scrollEdgeEffects: { top: "automatic", bottom: "automatic" },
+        scrollEdgeEffects: { top: "soft", bottom: "soft" },
         headerTintColor: theme.accent,
         headerTitleStyle: {
           color: theme.text,

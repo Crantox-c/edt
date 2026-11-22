@@ -32,6 +32,51 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
   (props: WeekOverviewWidgetProps, environment: WidgetEnvironment) => {
     "widget";
 
+    if (!props?.paletteDark || !props?.paletteLight) {
+      return (
+        <VStack
+          alignment="leading"
+          spacing={8}
+          modifiers={[
+            frame({
+              maxWidth: Infinity,
+              maxHeight: Infinity,
+              alignment: "topLeading",
+            }),
+            containerBackground(
+              { type: "material", material: "regular" },
+              "widget"
+            ),
+            widgetURL("geiiedt://"),
+          ]}
+        >
+          <HStack alignment="center" spacing={6}>
+            <Image systemName="calendar.badge.clock" size={15} />
+            <Text
+              modifiers={[
+                font({ size: 14, weight: "bold", design: "rounded" }),
+                lineLimit(1),
+                foregroundStyle({ type: "hierarchical", style: "primary" }),
+              ]}
+            >
+              GEII EDT · Semaine &amp; DS
+            </Text>
+          </HStack>
+          <Spacer minLength={2} />
+          <Text
+            modifiers={[
+              font({ size: 12, weight: "medium" }),
+              lineLimit(2),
+              foregroundStyle({ type: "hierarchical", style: "secondary" }),
+            ]}
+          >
+            Ouvrez l&apos;app pour synchroniser votre emploi du temps
+          </Text>
+          <Spacer minLength={0} />
+        </VStack>
+      );
+    }
+
     const isLight = environment?.colorScheme === "light";
     const palette = isLight ? props.paletteLight : props.paletteDark;
     const isTinted = environment?.widgetRenderingMode === "accented";

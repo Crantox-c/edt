@@ -5,6 +5,15 @@ import { useThemeContext } from "@/hooks/use-theme";
 
 const MODES: readonly SegmentedOption<ThemeMode>[] = [
   {
+    key: "oled",
+    label: "OLED",
+    icon: {
+      ios: "circle.lefthalf.filled",
+      android: "contrast",
+      web: "contrast",
+    },
+  },
+  {
     key: "nuit",
     label: "Nuit",
     icon: { ios: "moon.stars.fill", android: "dark_mode", web: "dark_mode" },
@@ -13,15 +22,6 @@ const MODES: readonly SegmentedOption<ThemeMode>[] = [
     key: "clair",
     label: "Clair",
     icon: { ios: "sun.max.fill", android: "light_mode", web: "light_mode" },
-  },
-  {
-    key: "oled",
-    label: "OLED",
-    icon: {
-      ios: "circle.lefthalf.filled",
-      android: "contrast",
-      web: "contrast",
-    },
   },
   {
     key: "auto",

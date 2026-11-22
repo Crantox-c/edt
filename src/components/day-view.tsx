@@ -1,16 +1,30 @@
-import React, { useMemo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+} from "react-native";
 import { SymbolView } from "expo-symbols";
 import { ThemedText } from "@/components/themed-text";
+import { EdrText, isEdrTextAvailable } from "@/components/ui/edr-text";
+import { GlassButton } from "@/components/ui/glass-button";
 import { GlassSurface } from "@/components/ui/glass-surface";
-import { PressableScale } from "@/components/ui/pressable-scale";
 import {
+  FontFamilies,
   Radius,
   Spacing,
-  concentricRadius,
   getSubjectTint,
 } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useTheme } from "@/hooks/use-theme";
 import {
   addDays,
@@ -18,15 +32,25 @@ import {
   formatDayShort,
   formatGapBetween,
   formatTotalDuration,
-  getMondayOfWeek,
   getParisDateString,
   getTodayParisDateString,
-  getWeekDays,
 } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { Course } from "@/lib/ics";
 import { CourseCard } from "./course-card";
 import { NowIndicator } from "./now-indicator";
+
+const DAY_ITEM_WIDTH = 48;
+
+function diffDaysParis(fromStr: string, toStr: string): number {
+  const [y1, m1, d1] = fromStr.split("-").map(Number);
+  const [y2, m2, d2] = toStr.split("-").map(Number);
+  return Math.round(
+    (Date.UTC(y2, m2 - 1, d2, 12, 0, 0) -
+      Date.UTC(y1, m1 - 1, d1, 12, 0, 0)) /
+      86400000
+  );
+}
 
 export type DayViewProps = {
   courses: Course[];
@@ -45,18 +69,74 @@ export function DayView({
 }: DayViewProps) {
   const theme = useTheme();
   const accent = theme.accentTiers;
+  const { isReduced } = useReducedMotion();
   const nowMs = useCurrentTime();
   const todayStr = getTodayParisDateString();
   const isToday = selectedDate === todayStr;
+  const useHardwareEdr = isEdrTextAvailable() && theme.isDark;
+
+  const listRef = useRef<FlatList<string>>(null);
+  const hasCenteredRef = useRef(false);
+  const [stripWidth, setStripWidth] = useState(0);
 
   const dayCourses = useMemo(() => {
     return courses.filter((c) => getParisDateString(c.start) === selectedDate);
   }, [courses, selectedDate]);
 
-  const mondayStr = getMondayOfWeek(selectedDate);
-  const weekDays = useMemo(() => getWeekDays(mondayStr, false), [mondayStr]);
+  // Plage continue de jours pour le scroll horizontal dynamique
+  const daysList = useMemo(() => {
+    let earliestCourseStr: string | null = null;
+    let latestCourseStr: string | null = null;
+    for (const c of courses) {
+      const d = getParisDateString(c.start);
+      if (!earliestCourseStr || d < earliestCourseStr) earliestCourseStr = d;
+      if (!latestCourseStr || d > latestCourseStr) latestCourseStr = d;
+    }
 
-  // Jusqu'à 3 pastilles de couleur matière par jour sur la bande semaine
+    const minCandidates = [addDays(todayStr, -28), addDays(selectedDate, -14)];
+    if (earliestCourseStr) {
+      minCandidates.push(addDays(earliestCourseStr, -7));
+    }
+    const maxCandidates = [addDays(todayStr, 60), addDays(selectedDate, 14)];
+    if (latestCourseStr) {
+      maxCandidates.push(addDays(latestCourseStr, 14));
+    }
+
+    let startStr = minCandidates.reduce((a, b) => (a < b ? a : b));
+    const endStr = maxCandidates.reduce((a, b) => (a > b ? a : b));
+    const rawSpan = diffDaysParis(startStr, endStr) + 1;
+    const count = Math.min(365, Math.max(30, rawSpan));
+
+    const offsetOfSelected = diffDaysParis(startStr, selectedDate);
+    if (offsetOfSelected < 0 || offsetOfSelected >= count) {
+      startStr = addDays(selectedDate, -Math.floor(count / 2));
+    }
+
+    const result: string[] = [];
+    for (let i = 0; i < count; i++) {
+      result.push(addDays(startStr, i));
+    }
+    return result;
+  }, [courses, todayStr, selectedDate]);
+
+  const selectedIndex = useMemo(() => {
+    const idx = diffDaysParis(daysList[0], selectedDate);
+    return Math.max(0, Math.min(daysList.length - 1, idx));
+  }, [daysList, selectedDate]);
+
+  useEffect(() => {
+    if (stripWidth <= 0) return;
+    const totalContentWidth = daysList.length * DAY_ITEM_WIDTH;
+    const maxOffset = Math.max(0, totalContentWidth - stripWidth);
+    const rawOffset =
+      selectedIndex * DAY_ITEM_WIDTH + DAY_ITEM_WIDTH / 2 - stripWidth / 2;
+    const targetOffset = Math.max(0, Math.min(maxOffset, rawOffset));
+    const animated = hasCenteredRef.current && !isReduced;
+    hasCenteredRef.current = true;
+    listRef.current?.scrollToOffset({ offset: targetOffset, animated });
+  }, [selectedIndex, stripWidth, daysList.length, isReduced]);
+
+  // Jusqu'à 3 pastilles de couleur matière par jour sur la bande scrollable
   const dayTintsMap = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const c of courses) {
@@ -79,27 +159,24 @@ export function DayView({
     return next ? getParisDateString(next.start) : null;
   }, [courses, selectedDate]);
 
-  const handlePrevWeek = () => {
-    haptics.tap();
-    onSelectDate(addDays(selectedDate, -7));
-  };
-
-  const handleNextWeek = () => {
-    haptics.tap();
-    onSelectDate(addDays(selectedDate, 7));
-  };
-
   const handleToday = () => {
     haptics.soft();
     onSelectDate(todayStr);
   };
 
-  const handleTapDay = (dStr: string) => {
-    if (dStr !== selectedDate) {
-      haptics.selection();
-      onSelectDate(dStr);
-    }
-  };
+  const handleTapDay = useCallback(
+    (dStr: string) => {
+      if (dStr !== selectedDate) {
+        haptics.selection();
+        onSelectDate(dStr);
+      }
+    },
+    [onSelectDate, selectedDate]
+  );
+
+  const handleStripLayout = useCallback((e: LayoutChangeEvent) => {
+    setStripWidth(e.nativeEvent.layout.width);
+  }, []);
 
   // Position de l'indicateur "maintenant" (hors d'un cours déjà actif)
   const hasActiveCourse =
@@ -115,119 +192,159 @@ export function DayView({
     [dayCourses]
   );
 
-  return (
-    <View style={styles.container}>
-      {/* Bande unifiée de la semaine dans un seul GlassSurface cristallin */}
-      <GlassSurface
-        glassEffectStyle="regular"
-        style={styles.weekStripSurface}
-        fallbackStyle={{
-          backgroundColor: theme.backgroundElement,
-          borderColor: theme.border,
-        }}
-      >
+  const renderDayItem = useCallback(
+    ({ item: dStr }: { item: string }) => {
+      const { weekday, dayNum } = formatDayShort(dStr);
+      const isSelected = dStr === selectedDate;
+      const isCurrentDay = dStr === todayStr;
+      const dots = dayTintsMap.get(dStr) ?? [];
+
+      return (
         <Pressable
-          onPress={handlePrevWeek}
-          hitSlop={6}
-          style={styles.weekArrowBtn}
-          accessibilityLabel="Semaine précédente"
+          onPress={() => handleTapDay(dStr)}
+          style={styles.dayTab}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isSelected }}
+          accessibilityLabel={formatDayHeaderCompact(dStr)}
         >
-          <SymbolView
-            name={{
-              ios: "chevron.left",
-              android: "chevron_left",
-              web: "chevron_left",
-            }}
-            size={14}
-            weight="bold"
-            tintColor={theme.textSecondary}
-          />
-        </Pressable>
-
-        {weekDays.map((dStr) => {
-          const { weekday, dayNum } = formatDayShort(dStr);
-          const isSelected = dStr === selectedDate;
-          const isCurrentDay = dStr === todayStr;
-          const dots = dayTintsMap.get(dStr) ?? [];
-
-          return (
-            <Pressable
-              key={dStr}
-              onPress={() => handleTapDay(dStr)}
+          {isSelected && !useHardwareEdr && (
+            <View
+              pointerEvents="none"
               style={[
-                styles.dayTab,
-                isSelected && {
-                  backgroundColor: accent.softBg,
-                  borderColor: accent.primary,
-                  borderWidth: 1.5,
+                styles.selectedGlow,
+                {
+                  backgroundImage: `radial-gradient(circle at 50% 54%, ${theme.daySelectedGlow} 0%, transparent 72%)`,
                 },
-                !isSelected &&
-                  isCurrentDay && {
-                    borderColor: accent.border,
-                    borderWidth: 1,
-                  },
+              ]}
+            />
+          )}
+
+          <ThemedText
+            type="captionBold"
+            style={[
+              styles.dayTabWeekday,
+              {
+                fontFamily: isSelected
+                  ? FontFamilies.displayBold
+                  : FontFamilies.bodyMedium,
+                color: isSelected ? accent.primary : theme.textSecondary,
+              },
+            ]}
+          >
+            {weekday}
+          </ThemedText>
+
+          {isSelected && useHardwareEdr ? (
+            <EdrText
+              text={dayNum}
+              color={theme.daySelectedNumber}
+              linearExposure={3.0}
+              fontSize={16.5}
+              fontFamily={FontFamilies.displayBold}
+              glowColor={accent.primary}
+              glowRadius={6}
+              style={styles.edrDayNumber}
+            />
+          ) : (
+            <ThemedText
+              type="tabular"
+              style={[
+                styles.dayTabNumber,
+                {
+                  color: isSelected
+                    ? theme.daySelectedNumber
+                    : isCurrentDay
+                      ? accent.primary
+                      : theme.text,
+                  fontFamily: isSelected
+                    ? FontFamilies.displayBold
+                    : FontFamilies.monoMedium,
+                },
+                isSelected && {
+                  transform: [{ scale: 1.08 }],
+                  textShadowColor: theme.isDark ? accent.primary : accent.border,
+                  textShadowOffset: { width: 0, height: 0 },
+                  textShadowRadius: theme.isDark ? 12 : 6,
+                },
               ]}
             >
-              <ThemedText
-                type="captionBold"
-                style={[
-                  styles.dayTabWeekday,
-                  {
-                    color: isSelected ? accent.text : theme.textSecondary,
-                  },
-                ]}
-              >
-                {weekday}
-              </ThemedText>
-              <ThemedText
-                type="tabular"
-                style={[
-                  styles.dayTabNumber,
-                  isCurrentDay && !isSelected && { color: accent.primary },
-                  isSelected && { color: accent.text },
-                ]}
-              >
-                {dayNum}
-              </ThemedText>
-              <View style={styles.dotsRow}>
-                {dots.length > 0 ? (
-                  dots.map((dotColor, i) => (
-                    <View
-                      key={`${dStr}-dot-${i}`}
-                      style={[
-                        styles.courseDot,
-                        {
-                          backgroundColor: isSelected ? accent.text : dotColor,
-                        },
-                      ]}
-                    />
-                  ))
-                ) : (
-                  <View style={styles.dotPlaceholder} />
-                )}
-              </View>
-            </Pressable>
-          );
-        })}
+              {dayNum}
+            </ThemedText>
+          )}
 
-        <Pressable
-          onPress={handleNextWeek}
-          hitSlop={6}
-          style={styles.weekArrowBtn}
-          accessibilityLabel="Semaine suivante"
-        >
-          <SymbolView
-            name={{
-              ios: "chevron.right",
-              android: "chevron_right",
-              web: "chevron_right",
-            }}
-            size={14}
-            weight="bold"
-            tintColor={theme.textSecondary}
-          />
+          <View style={styles.dotsRow}>
+            {dots.length > 0 ? (
+              dots.map((dotColor, i) => (
+                <View
+                  key={`${dStr}-dot-${i}`}
+                  style={[
+                    styles.courseDot,
+                    {
+                      backgroundColor: isSelected
+                        ? theme.daySelectedNumber
+                        : dotColor,
+                    },
+                  ]}
+                />
+              ))
+            ) : (
+              <View style={styles.dotPlaceholder} />
+            )}
+          </View>
         </Pressable>
-      </GlassSurface>
+      );
+    },
+    [
+      accent.border,
+      accent.primary,
+      dayTintsMap,
+      handleTapDay,
+      selectedDate,
+      theme,
+      todayStr,
+      useHardwareEdr,
+    ]
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Bande de jours compacte, arrondie, plus étroite et scrollable horizontalement */}
+      <View style={styles.weekStripOuter}>
+        <GlassSurface
+          glassEffectStyle="regular"
+          style={styles.weekStripSurface}
+          fallbackStyle={{
+            backgroundColor: theme.backgroundElement,
+            borderColor: theme.border,
+          }}
+        >
+          <View style={styles.daysListMask} onLayout={handleStripLayout}>
+            <FlatList
+              ref={listRef}
+              horizontal
+              data={daysList}
+              keyExtractor={(item) => item}
+              renderItem={renderDayItem}
+              extraData={{ selectedDate, dayTintsMap, theme, useHardwareEdr }}
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              initialNumToRender={15}
+              windowSize={5}
+              getItemLayout={(_, index) => ({
+                length: DAY_ITEM_WIDTH,
+                offset: DAY_ITEM_WIDTH * index,
+                index,
+              })}
+              onScrollToIndexFailed={(info) => {
+                listRef.current?.scrollToOffset({
+                  offset: info.index * DAY_ITEM_WIDTH,
+                  animated: false,
+                });
+              }}
+            />
+          </View>
+        </GlassSurface>
+      </View>
 
       {/* En-tête du jour sélectionné + résumé volume horaire */}
       <View style={styles.dayHeaderRow}>
@@ -237,12 +354,12 @@ export function DayView({
 
         <View style={styles.dayHeaderRight}>
           {!isToday && (
-            <Pressable
+            <GlassButton
+              haptic="none"
+              tintColor={accent.solidBg}
+              borderColor={accent.primary}
               onPress={handleToday}
-              style={[
-                styles.todayPill,
-                { backgroundColor: accent.softBg, borderColor: accent.border },
-              ]}
+              style={styles.todayPill}
             >
               <SymbolView
                 name={{
@@ -251,15 +368,15 @@ export function DayView({
                   web: "today",
                 }}
                 size={11}
-                tintColor={accent.text}
+                tintColor={theme.textOnAccent}
               />
               <ThemedText
                 type="captionBold"
-                style={{ color: accent.text }}
+                style={{ color: theme.textOnAccent }}
               >
                 {"Aujourd'hui"}
               </ThemedText>
-            </Pressable>
+            </GlassButton>
           )}
           <View
             style={[
@@ -307,17 +424,17 @@ export function DayView({
           </ThemedText>
 
           {nextActiveDate && (
-            <PressableScale
+            <GlassButton
               haptic="soft"
+              tintColor={accent.solidBg}
+              borderColor={accent.primary}
               onPress={() => onSelectDate(nextActiveDate)}
-              style={[
-                styles.jumpNextBtn,
-                { backgroundColor: accent.softBg, borderColor: accent.border },
-              ]}
+              containerStyle={styles.jumpNextContainer}
+              style={styles.jumpNextBtn}
             >
               <ThemedText
                 type="captionBold"
-                style={{ color: accent.text }}
+                style={{ color: theme.textOnAccent }}
               >
                 Aller au {formatDayHeaderCompact(nextActiveDate)}
               </ThemedText>
@@ -328,9 +445,9 @@ export function DayView({
                   web: "chevron_right",
                 }}
                 size={11}
-                tintColor={accent.text}
+                tintColor={theme.textOnAccent}
               />
-            </PressableScale>
+            </GlassButton>
           )}
 
           {isToday && <NowIndicator />}
@@ -430,55 +547,64 @@ const styles = StyleSheet.create({
   container: {
     gap: Spacing.two,
   },
-  weekStripSurface: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 24,
-    borderCurve: "continuous",
-    padding: 6,
-    gap: 2,
+  weekStripOuter: {
+    width: "84%",
+    maxWidth: 340,
+    alignSelf: "center",
   },
-  weekArrowBtn: {
-    width: 26,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
+  weekStripSurface: {
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+  },
+  daysListMask: {
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    overflow: "hidden",
   },
   dayTab: {
-    flex: 1,
+    width: DAY_ITEM_WIDTH,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    height: 50,
-    borderRadius: concentricRadius(24, 6),
-    borderCurve: "continuous",
+    position: "relative",
     gap: 1,
-    borderWidth: 1,
-    borderColor: "transparent",
+  },
+  selectedGlow: {
+    position: "absolute",
+    inset: -2,
+    borderRadius: Radius.pill,
   },
   dayTabWeekday: {
-    fontSize: 10,
+    fontSize: 9.5,
+    lineHeight: 11,
     letterSpacing: 0.3,
   },
   dayTabNumber: {
     fontSize: 15,
-    lineHeight: 18,
+    lineHeight: 17,
+  },
+  edrDayNumber: {
+    width: 34,
+    height: 19,
   },
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    height: 5,
+    gap: 2.5,
+    height: 4,
     marginTop: 1,
   },
   courseDot: {
-    width: 4,
-    height: 4,
+    width: 3.5,
+    height: 3.5,
     borderRadius: Radius.pill,
   },
   dotPlaceholder: {
-    width: 4,
-    height: 4,
+    width: 3.5,
+    height: 3.5,
   },
   dayHeaderRow: {
     flexDirection: "row",
@@ -496,11 +622,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
-    borderWidth: StyleSheet.hairlineWidth,
   },
   summaryPill: {
     paddingHorizontal: 9,
@@ -553,15 +678,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 4,
   },
+  jumpNextContainer: {
+    marginTop: Spacing.two,
+  },
   jumpNextBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: Spacing.two,
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });

@@ -1,0 +1,6 @@
+{
+  "name": "edr-text",
+  "version": "1.0.0",
+  "description": "Native iOS 26 EDR/HDR text view using UIColor linearExposure and CALayer preferredDynamicRange",
+  "license": "MIT"
+}

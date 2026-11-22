@@ -11,8 +11,11 @@ import {
 import { SymbolView } from "expo-symbols";
 import { ThemedText } from "@/components/themed-text";
 import { AmbientBackground } from "@/components/ui/ambient-background";
-import { GlassSurface } from "@/components/ui/glass-surface";
-import { PressableScale } from "@/components/ui/pressable-scale";
+import { GlassButton } from "@/components/ui/glass-button";
+import {
+  GlassSurface,
+  GlassSurfaceContainer,
+} from "@/components/ui/glass-surface";
 import {
   FontFamilies,
   Radius,
@@ -149,6 +152,7 @@ function CourseDetailContent({
 
       <ScrollView
         style={styles.scroll}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -340,22 +344,19 @@ function CourseDetailContent({
 
         {/* Actions rapides matière */}
         {(onFilterBySubject || onHideSubject) && (
-          <View style={styles.quickActionsRow}>
+          <GlassSurfaceContainer spacing={8} style={styles.quickActionsRow}>
             {onFilterBySubject && (
-              <PressableScale
+              <GlassButton
                 haptic="soft"
+                tintColor={theme.accentTiers.solidBg}
+                borderColor={theme.accentTiers.primary}
                 onPress={() => {
                   saveCourseNote(course.key, noteInput);
                   onFilterBySubject(course.subject);
                   onClose();
                 }}
-                style={[
-                  styles.quickActionPill,
-                  {
-                    backgroundColor: theme.accentTiers.softBg,
-                    borderColor: theme.accentTiers.border,
-                  },
-                ]}
+                containerStyle={styles.quickActionContainer}
+                style={styles.quickActionPill}
               >
                 <SymbolView
                   name={{
@@ -364,33 +365,30 @@ function CourseDetailContent({
                     web: "filter_alt",
                   }}
                   size={14}
-                  tintColor={theme.accentTiers.text}
+                  tintColor={theme.textOnAccent}
                 />
                 <ThemedText
                   type="captionBold"
-                  style={{ color: theme.accentTiers.text }}
+                  style={{ color: theme.textOnAccent }}
                 >
                   Filtrer {course.subject}
                 </ThemedText>
-              </PressableScale>
+              </GlassButton>
             )}
 
             {onHideSubject && (
-              <PressableScale
+              <GlassButton
                 haptic="none"
+                tintColor={theme.corail[600]}
+                borderColor={theme.corail[500]}
                 onPress={() => {
                   haptics.warning();
                   saveCourseNote(course.key, noteInput);
                   onHideSubject(course.subject);
                   onClose();
                 }}
-                style={[
-                  styles.quickActionPill,
-                  {
-                    backgroundColor: theme.corail[100],
-                    borderColor: theme.corail[300],
-                  },
-                ]}
+                containerStyle={styles.quickActionContainer}
+                style={styles.quickActionPill}
               >
                 <SymbolView
                   name={{
@@ -399,17 +397,17 @@ function CourseDetailContent({
                     web: "visibility_off",
                   }}
                   size={14}
-                  tintColor={theme.corail[700]}
+                  tintColor={theme.textOnAccent}
                 />
                 <ThemedText
                   type="captionBold"
-                  style={{ color: theme.corail[700] }}
+                  style={{ color: theme.textOnAccent }}
                 >
                   Masquer {course.subject}
                 </ThemedText>
-              </PressableScale>
+              </GlassButton>
             )}
-          </View>
+          </GlassSurfaceContainer>
         )}
 
         {/* Note personnelle par cours */}
@@ -475,18 +473,17 @@ function CourseDetailContent({
           />
         </View>
 
-        <PressableScale
+        <GlassButton
           haptic="none"
+          tintColor={theme.accentTiers.solidBg}
+          borderColor={theme.accentTiers.primary}
           onPress={handleClose}
-          style={[
-            styles.doneButton,
-            { backgroundColor: theme.accentTiers.solidBg },
-          ]}
+          style={styles.doneButton}
         >
           <ThemedText type="smallBold" style={{ color: theme.textOnAccent }}>
             Enregistrer et fermer
           </ThemedText>
-        </PressableScale>
+        </GlassButton>
       </ScrollView>
     </View>
   );
@@ -542,8 +539,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   closeCircle: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
     alignItems: "center",
@@ -615,17 +612,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.two,
   },
-  quickActionPill: {
+  quickActionContainer: {
     flex: 1,
+  },
+  quickActionPill: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: Spacing.two,
     borderRadius: Radius.lg,
     borderCurve: "continuous",
-    borderWidth: StyleSheet.hairlineWidth,
   },
   noteCard: {
     borderRadius: Radius.xl,

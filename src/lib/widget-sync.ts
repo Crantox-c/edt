@@ -12,8 +12,18 @@ type LoadedWidgets = {
   weekOverview: typeof import("@/widgets/week-overview-widget").default;
 };
 
+export type WidgetSyncStatus = {
+  lastSyncAt: number | null;
+  entryCount: number;
+  lastError: string | null;
+};
+
 let widgetsPromise: Promise<LoadedWidgets> | null = null;
-let lastWidgetSyncAt: number | null = null;
+let widgetSyncStatus: WidgetSyncStatus = {
+  lastSyncAt: null,
+  entryCount: 0,
+  lastError: null,
+};
 const syncListeners = new Set<() => void>();
 
 function notifyWidgetSyncListeners(): void {
@@ -43,7 +53,11 @@ export function subscribeWidgetSync(listener: () => void): () => void {
 }
 
 export function getLastWidgetSyncSnapshot(): number | null {
-  return lastWidgetSyncAt;
+  return widgetSyncStatus.lastSyncAt;
+}
+
+export function getWidgetSyncStatusSnapshot(): WidgetSyncStatus {
+  return widgetSyncStatus;
 }
 
 async function loadWidgets(): Promise<LoadedWidgets> {
@@ -95,11 +109,20 @@ export async function syncWidgetsFromSchedule(
     widgets.dayAgenda.updateTimeline(payload.dayAgendaEntries);
     widgets.weekOverview.updateTimeline(payload.weekOverviewEntries);
 
-    lastWidgetSyncAt = Date.now();
+    widgetSyncStatus = {
+      lastSyncAt: Date.now(),
+      entryCount: payload.nextCourseEntries.length,
+      lastError: null,
+    };
     notifyWidgetSyncListeners();
     return true;
   } catch (err) {
     console.warn("Impossible de synchroniser les widgets iOS:", err);
+    widgetSyncStatus = {
+      ...widgetSyncStatus,
+      lastError: String((err as Error)?.message ?? err),
+    };
+    notifyWidgetSyncListeners();
     return false;
   }
 }

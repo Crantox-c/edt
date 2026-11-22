@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,8 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
@@ -16,6 +19,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollViewMarker } from "react-native-screens/experimental";
 import { SymbolView } from "expo-symbols";
 
 import { ActiveFilterPills } from "@/components/active-filter-pills";
@@ -30,17 +34,17 @@ import {
 } from "@/components/segmented-control";
 import { ThemedText } from "@/components/themed-text";
 import { AmbientBackground } from "@/components/ui/ambient-background";
+import { GlassButton } from "@/components/ui/glass-button";
 import {
   GlassSurface,
   GlassSurfaceContainer,
 } from "@/components/ui/glass-surface";
-import { PressableScale } from "@/components/ui/pressable-scale";
 import { WeekView } from "@/components/week-view";
 import {
-  BottomTabInset,
   MaxContentWidth,
   Radius,
   Spacing,
+  getTabScrollPaddingBottom,
 } from "@/constants/theme";
 import { useFilters } from "@/hooks/use-filters";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
@@ -119,8 +123,23 @@ export default function HomeScreen() {
   );
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [syncSeq, setSyncSeq] = useState(0);
+  const [hiddenSyncKey, setHiddenSyncKey] = useState<string | null>(null);
+
+  const syncKey = `${lastSync ?? "none"}-${syncSeq}`;
+  const showSyncMeta = isSyncing || hiddenSyncKey !== syncKey;
 
   const spinDeg = useSharedValue(0);
+
+  useEffect(() => {
+    if (isSyncing) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setHiddenSyncKey(syncKey);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isSyncing, syncKey]);
 
   useEffect(() => {
     if (isSyncing && !isReduced) {
@@ -164,6 +183,12 @@ export default function HomeScreen() {
 
   const handlePullRefresh = () => {
     haptics.toggle();
+    setSyncSeq((n) => n + 1);
+    refresh();
+  };
+
+  const handleManualRefresh = () => {
+    setSyncSeq((n) => n + 1);
     refresh();
   };
 
@@ -174,20 +199,24 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <AmbientBackground />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Platform.OS === "ios" ? Spacing.one : insets.top + Spacing.two,
-            paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
+      <ScrollViewMarker
+        style={[styles.scrollView, styles.scrollLayer]}
+        scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentInsetAdjustmentBehavior="automatic"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop:
+                Platform.OS === "ios" ? Spacing.one : insets.top + Spacing.two,
+              paddingBottom: getTabScrollPaddingBottom(insets.bottom),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
           <RefreshControl
             refreshing={isSyncing}
             onRefresh={handlePullRefresh}
@@ -195,131 +224,136 @@ export default function HomeScreen() {
           />
         }
       >
-        {/* En-tête éditorial compact + 2 actions flottantes en Liquid Glass (44pt iOS) */}
+        {/* En-tête éditorial compact + actions Liquid Glass colorées opaques */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={styles.titleBlock}>
               <ThemedText type="overline" themeColor="accent">
                 {monthLabel}
               </ThemedText>
-              <ThemedText type="largeTitle">Emploi du temps</ThemedText>
-              <View style={styles.syncMetaRow}>
-                <SymbolView
-                  name={{
-                    ios: isSyncing
-                      ? "arrow.triangle.2.circlepath"
-                      : "checkmark.circle.fill",
-                    android: isSyncing ? "sync" : "check_circle",
-                    web: isSyncing ? "sync" : "check_circle",
-                  }}
-                  size={12}
-                  tintColor={isSyncing ? accent.primary : theme.menthe[500]}
-                />
-                <ThemedText type="caption" themeColor="textSecondary">
-                  {isSyncing
-                    ? "Synchronisation..."
-                    : `Synchro ${formatLastSync(lastSync)}`}
-                  {courses.length > 0 &&
-                    ` • ${
-                      isFiltering
-                        ? `${filteredCourses.length}/${courses.length} cours`
-                        : `${courses.length} cours`
-                    }`}
-                </ThemedText>
-              </View>
+              <ThemedText
+                type="largeTitle"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                Emploi du temps
+              </ThemedText>
+              {showSyncMeta && (
+                <Animated.View
+                  entering={isReduced ? undefined : FadeIn.duration(200)}
+                  exiting={isReduced ? undefined : FadeOut.duration(250)}
+                  style={styles.syncMetaRow}
+                >
+                  <SymbolView
+                    name={{
+                      ios: isSyncing
+                        ? "arrow.triangle.2.circlepath"
+                        : "checkmark.circle.fill",
+                      android: isSyncing ? "sync" : "check_circle",
+                      web: isSyncing ? "sync" : "check_circle",
+                    }}
+                    size={12}
+                    tintColor={isSyncing ? accent.primary : theme.menthe[500]}
+                  />
+                  <ThemedText type="caption" themeColor="textSecondary">
+                    {isSyncing
+                      ? "Synchronisation..."
+                      : `Synchro ${formatLastSync(lastSync)}`}
+                    {courses.length > 0 &&
+                      ` • ${
+                        isFiltering
+                          ? `${filteredCourses.length}/${courses.length} cours`
+                          : `${courses.length} cours`
+                      }`}
+                  </ThemedText>
+                </Animated.View>
+              )}
             </View>
 
-            <GlassSurfaceContainer spacing={10} style={styles.headerActions}>
-              {/* Bouton filtres combinables avec pastille compteur */}
-              <View style={styles.filterBtnWrapper}>
-                <PressableScale
-                  onPress={() => setIsFilterModalOpen(true)}
-                  haptic="soft"
-                  hitSlop={6}
-                  accessibilityLabel="Filtres"
-                >
-                  <GlassSurface
-                    glassEffectStyle="regular"
-                    isInteractive={true}
-                    style={styles.circleActionBtn}
-                    fallbackStyle={{
-                      backgroundColor:
-                        activeFilterCount > 0
-                          ? accent.softBg
-                          : theme.backgroundElement,
-                      borderColor:
-                        activeFilterCount > 0 ? accent.primary : theme.border,
-                    }}
-                  >
-                    <SymbolView
-                      name={{
-                        ios: "slider.horizontal.3",
-                        android: "tune",
-                        web: "tune",
-                      }}
-                      size={20}
-                      weight="medium"
-                      tintColor={
-                        activeFilterCount > 0 ? accent.primary : theme.text
-                      }
-                    />
-                  </GlassSurface>
-                </PressableScale>
-
-                {activeFilterCount > 0 && (
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.filterCountBadge,
-                      {
-                        backgroundColor: accent.solidBg,
-                        borderColor: theme.background,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="captionBold"
-                      style={[
-                        styles.filterCountText,
-                        { color: theme.textOnAccent },
-                      ]}
-                    >
-                      {activeFilterCount}
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-
-              {/* Bouton rafraîchir */}
-              <PressableScale
-                onPress={refresh}
-                haptic="toggle"
+            <GlassSurfaceContainer spacing={8} style={styles.headerActions}>
+              {/* Bouton pilule Filtres combinables en Liquid Glass transparent */}
+              <Pressable
+                onPress={() => {
+                  haptics.soft();
+                  setIsFilterModalOpen(true);
+                }}
                 hitSlop={6}
-                accessibilityLabel="Actualiser le flux"
+                accessibilityLabel="Filtres"
               >
                 <GlassSurface
                   glassEffectStyle="regular"
                   isInteractive={true}
-                  style={styles.circleActionBtn}
+                  style={styles.filterPillBtn}
                   fallbackStyle={{
-                    backgroundColor: theme.backgroundElement,
-                    borderColor: theme.border,
+                    backgroundColor:
+                      activeFilterCount > 0 ? accent.softBg : theme.cardBg,
+                    borderColor:
+                      activeFilterCount > 0 ? accent.border : theme.cardBorder,
                   }}
                 >
-                  <Animated.View style={spinStyle}>
-                    <SymbolView
-                      name={{
-                        ios: "arrow.clockwise",
-                        android: "refresh",
-                        web: "refresh",
-                      }}
-                      size={20}
-                      weight="medium"
-                      tintColor={accent.primary}
-                    />
-                  </Animated.View>
+                  <SymbolView
+                    name={{
+                      ios: "slider.horizontal.3",
+                      android: "tune",
+                      web: "tune",
+                    }}
+                    size={17}
+                    weight="medium"
+                    tintColor={activeFilterCount > 0 ? accent.primary : theme.text}
+                  />
+                  <ThemedText
+                    type="smallBold"
+                    style={{
+                      color: activeFilterCount > 0 ? accent.primary : theme.text,
+                    }}
+                  >
+                    Filtres
+                  </ThemedText>
+                  {activeFilterCount > 0 && (
+                    <View
+                      style={[
+                        styles.filterCountBadge,
+                        { backgroundColor: accent.solidBg },
+                      ]}
+                    >
+                      <ThemedText
+                        type="captionBold"
+                        style={[
+                          styles.filterCountText,
+                          { color: theme.textOnAccent },
+                        ]}
+                      >
+                        {activeFilterCount}
+                      </ThemedText>
+                    </View>
+                  )}
                 </GlassSurface>
-              </PressableScale>
+              </Pressable>
+
+              {/* Bouton rafraîchir en Liquid Glass opaque couleur d'accentuation */}
+              <GlassButton
+                onPress={handleManualRefresh}
+                haptic="toggle"
+                hitSlop={6}
+                accessibilityLabel="Actualiser le flux"
+                tintColor={accent.solidBg}
+                borderColor={accent.primary}
+                style={styles.circleActionBtn}
+              >
+                <Animated.View style={spinStyle}>
+                  <SymbolView
+                    name={{
+                      ios: "arrow.clockwise",
+                      android: "refresh",
+                      web: "refresh",
+                    }}
+                    size={19}
+                    weight="medium"
+                    tintColor={theme.textOnAccent}
+                  />
+                </Animated.View>
+              </GlassButton>
             </GlassSurfaceContainer>
           </View>
 
@@ -368,7 +402,8 @@ export default function HomeScreen() {
                 type="caption"
                 style={[styles.errorBannerText, { color: corail[700] }]}
               >
-                Hors-ligne ({error}). Dernier flux valide conservé.
+                Hors-ligne ({error}) — dernière synchro :{" "}
+                {formatLastSync(lastSync)}.
               </ThemedText>
             </View>
           )}
@@ -435,16 +470,15 @@ export default function HomeScreen() {
             <ThemedText type="caption" themeColor="textSecondary">
               Modifiez vos filtres pour réafficher vos cours.
             </ThemedText>
-            <PressableScale
+            <GlassButton
               haptic="none"
+              tintColor={accent.solidBg}
+              borderColor={accent.primary}
               onPress={() => {
                 haptics.warning();
                 resetFilters();
               }}
-              style={[
-                styles.resetFilterBtn,
-                { backgroundColor: accent.solidBg },
-              ]}
+              style={styles.resetFilterBtn}
             >
               <ThemedText
                 type="smallBold"
@@ -452,7 +486,7 @@ export default function HomeScreen() {
               >
                 Réinitialiser les filtres
               </ThemedText>
-            </PressableScale>
+            </GlassButton>
           </View>
         ) : (
           <>
@@ -486,7 +520,10 @@ export default function HomeScreen() {
             )}
           </>
         )}
-      </ScrollView>
+        </ScrollView>
+      </ScrollViewMarker>
+
+      <AmbientBackground />
 
       {/* Feuille détail du cours */}
       <CourseDetailModal
@@ -525,6 +562,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollLayer: {
+    zIndex: 1,
+  },
   content: {
     maxWidth: MaxContentWidth,
     width: "100%",
@@ -553,7 +593,18 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    flexShrink: 0,
+  },
+  filterPillBtn: {
+    height: 44,
+    paddingHorizontal: 13,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
   circleActionBtn: {
     width: 44,
@@ -563,21 +614,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  filterBtnWrapper: {
-    position: "relative",
-  },
   filterCountBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    minWidth: 20,
-    height: 20,
+    minWidth: 19,
+    height: 19,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
     paddingHorizontal: 5,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
   },
   filterCountText: {
     fontSize: 11,

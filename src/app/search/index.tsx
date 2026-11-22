@@ -3,19 +3,22 @@ import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native"
 import { Stack } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollViewMarker } from "react-native-screens/experimental";
 
 import { CourseCard } from "@/components/course-card";
 import { CourseDetailModal } from "@/components/course-detail-modal";
 import { SearchBar } from "@/components/search-bar";
 import { ThemedText } from "@/components/themed-text";
 import { AmbientBackground } from "@/components/ui/ambient-background";
+import { GlassButton } from "@/components/ui/glass-button";
+import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
 import { PressableScale } from "@/components/ui/pressable-scale";
 import {
-  BottomTabInset,
   MaxContentWidth,
   Radius,
   Spacing,
   getSubjectTint,
+  getTabScrollPaddingBottom,
 } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
 import { useSchedule } from "@/hooks/use-schedule";
@@ -177,19 +180,22 @@ export default function SearchScreen() {
         }}
       />
 
-      <AmbientBackground />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={[
-          styles.content,
-          Platform.OS !== "ios" && { paddingTop: insets.top + Spacing.two },
-          { paddingBottom: insets.bottom + BottomTabInset + Spacing.four },
-        ]}
+      <ScrollViewMarker
+        style={[styles.scrollView, styles.scrollLayer]}
+        scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
       >
+        <ScrollView
+          style={styles.scrollView}
+          contentInsetAdjustmentBehavior="automatic"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={[
+            styles.content,
+            Platform.OS !== "ios" && { paddingTop: insets.top + Spacing.two },
+            { paddingBottom: getTabScrollPaddingBottom(insets.bottom) },
+          ]}
+        >
         {Platform.OS !== "ios" && (
           <SearchBar value={query} onChangeText={setQuery} />
         )}
@@ -199,23 +205,19 @@ export default function SearchScreen() {
           <ThemedText type="overline" themeColor="textSecondary">
             Accès rapide
           </ThemedText>
-          <View style={styles.shortcutsRow}>
+          <GlassSurfaceContainer spacing={8} style={styles.shortcutsRow}>
             {QUICK_SHORTCUTS.map((item) => {
               const selected = quickFilter === item.key;
               const scale =
                 item.key === "DS" ? theme.corail : theme.accentScale;
               return (
-                <PressableScale
+                <GlassButton
                   key={item.key}
                   haptic="none"
+                  tintColor={selected ? scale[600] : theme.cardBg}
+                  borderColor={selected ? scale[500] : theme.cardBorder}
                   onPress={() => handleToggleQuick(item.key)}
-                  style={[
-                    styles.shortcutPill,
-                    {
-                      backgroundColor: selected ? scale[100] : theme.cardBg,
-                      borderColor: selected ? scale[500] : theme.cardBorder,
-                    },
-                  ]}
+                  style={styles.shortcutPill}
                 >
                   <SymbolView
                     name={{
@@ -224,18 +226,18 @@ export default function SearchScreen() {
                       web: "search",
                     }}
                     size={13}
-                    tintColor={selected ? scale[700] : scale[500]}
+                    tintColor={selected ? theme.textOnAccent : scale[500]}
                   />
                   <ThemedText
                     type="captionBold"
-                    style={{ color: selected ? scale[700] : theme.text }}
+                    style={{ color: selected ? theme.textOnAccent : theme.text }}
                   >
                     {item.label}
                   </ThemedText>
-                </PressableScale>
+                </GlassButton>
               );
             })}
-          </View>
+          </GlassSurfaceContainer>
         </View>
 
         {!isSearching ? (
@@ -392,7 +394,10 @@ export default function SearchScreen() {
             )}
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </ScrollViewMarker>
+
+      <AmbientBackground />
 
       <CourseDetailModal
         course={activeCourse}
@@ -409,6 +414,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollLayer: {
+    zIndex: 1,
   },
   content: {
     maxWidth: MaxContentWidth,
@@ -431,10 +439,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
-    borderWidth: StyleSheet.hairlineWidth,
   },
   subjectsGrid: {
     flexDirection: "row",

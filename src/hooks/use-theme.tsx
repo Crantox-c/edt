@@ -32,8 +32,8 @@ type ThemeContextType = {
 };
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: Themes.nuit,
-  themeMode: "nuit",
+  theme: Themes.oled,
+  themeMode: "oled",
   setThemeMode: () => {},
   accentPreset: "glacier",
   setAccentPreset: () => {},
@@ -41,7 +41,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("nuit");
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("oled");
   const [accentPreset, setAccentPresetState] = useState<AccentPreset>("glacier");
 
   // Charger le mode de thème et la couleur d'accentuation sauvegardés
@@ -95,7 +95,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const resolvedBase: BaseThemeMode =
       themeMode === "auto"
         ? systemScheme === "dark"
-          ? "nuit"
+          ? "oled"
           : "clair"
         : themeMode;
     return resolveTheme(resolvedBase, accentPreset);

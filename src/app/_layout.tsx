@@ -14,6 +14,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from "@expo-google-fonts/plus-jakarta-sans";
+import { useEffect } from "react";
 import { useFonts } from "expo-font";
 import {
   DarkTheme,
@@ -23,12 +24,11 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 
-import { AnimatedSplashOverlay } from "@/components/animated-icon";
 import AppTabs from "@/components/app-tabs";
 import { ScheduleProvider } from "@/hooks/use-schedule";
 import { ThemeProvider, useTheme } from "@/hooks/use-theme";
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootNavigator() {
   const theme = useTheme();
@@ -37,7 +37,6 @@ function RootNavigator() {
   return (
     <NavigationThemeProvider value={navTheme}>
       <StatusBar style={theme.isDark ? "light" : "dark"} />
-      <AnimatedSplashOverlay />
       <AppTabs />
     </NavigationThemeProvider>
   );
@@ -56,6 +55,12 @@ export default function TabLayout() {
     JetBrainsMono_500Medium,
     JetBrainsMono_600SemiBold,
   });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
     return null;

@@ -97,6 +97,7 @@ export function NotificationModal({
 
         <ScrollView
           style={styles.scroll}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
           {/* Bannière de permission si non accordée */}

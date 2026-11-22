@@ -74,6 +74,8 @@ export type AppTheme = {
   auroraPrimary: string;
   auroraSecondary: string;
   auroraTertiary: string;
+  daySelectedNumber: string;
+  daySelectedGlow: string;
   // Échelles 7 nuances par teinte
   glacier: Scale7;
   violet: Scale7;
@@ -87,17 +89,17 @@ type ThemeBase = Omit<
   "accentPreset" | "accentScale" | "accentTiers"
 >;
 
-// 1. Thème Nuit (Défaut : Bleu nuit profond saphir, accents hiérarchisés)
+// 1. Thème Nuit (Graphite profond discret, accents hiérarchisés)
 const nuitThemeBase: ThemeBase = {
   name: "nuit",
   isDark: true,
-  background: "#080C16",
-  backgroundElement: "rgba(17, 24, 39, 0.88)",
-  backgroundSelected: "rgba(30, 41, 66, 0.96)",
-  backgroundHover: "#253554",
-  cardBg: "#111827",
-  cardBgSubtle: "#0D1321",
-  cardBorder: "rgba(148, 175, 220, 0.12)",
+  background: "#0C0E13",
+  backgroundElement: "rgba(21, 24, 32, 0.90)",
+  backgroundSelected: "#202531",
+  backgroundHover: "#282E3D",
+  cardBg: "#141720",
+  cardBgSubtle: "#10131A",
+  cardBorder: "rgba(160, 174, 198, 0.11)",
   cardHighlight: "rgba(255, 255, 255, 0.05)",
   surfaceMuted: "rgba(148, 163, 184, 0.13)",
   border: "rgba(148, 163, 184, 0.16)",
@@ -111,9 +113,11 @@ const nuitThemeBase: ThemeBase = {
   scrim: "rgba(0, 0, 0, 0.48)",
   accent: "#38BDF8",
   accentSecondary: "#A78BFA",
-  auroraPrimary: "rgba(56, 152, 248, 0.11)",
-  auroraSecondary: "rgba(139, 118, 246, 0.08)",
-  auroraTertiary: "rgba(30, 64, 135, 0.09)",
+  auroraPrimary: "rgba(56, 152, 248, 0.10)",
+  auroraSecondary: "rgba(139, 118, 246, 0.065)",
+  auroraTertiary: "rgba(56, 152, 248, 0.085)",
+  daySelectedNumber: "#FFFFFF",
+  daySelectedGlow: "rgba(56, 189, 248, 0.34)",
   glacier: {
     50: "rgba(56, 189, 248, 0.10)",
     100: "rgba(56, 189, 248, 0.20)",
@@ -188,6 +192,8 @@ const clairThemeBase: ThemeBase = {
   auroraPrimary: "rgba(14, 165, 233, 0.09)",
   auroraSecondary: "rgba(124, 58, 237, 0.06)",
   auroraTertiary: "rgba(186, 230, 253, 0.12)",
+  daySelectedNumber: "#0369A1",
+  daySelectedGlow: "rgba(2, 132, 199, 0.24)",
   glacier: {
     50: "#F0F9FF",
     100: "#E0F2FE",
@@ -235,7 +241,7 @@ const clairThemeBase: ThemeBase = {
   },
 };
 
-// 3. Thème Noir OLED
+// 3. Thème Noir OLED (Défaut sombre : noir pur + lueur colorée vivante haut/bas)
 const oledThemeBase: ThemeBase = {
   ...nuitThemeBase,
   name: "oled",
@@ -250,15 +256,19 @@ const oledThemeBase: ThemeBase = {
   surfaceMuted: "rgba(255, 255, 255, 0.10)",
   border: "rgba(255, 255, 255, 0.14)",
   borderSubtle: "rgba(255, 255, 255, 0.07)",
-  auroraPrimary: "rgba(56, 152, 248, 0.05)",
-  auroraSecondary: "rgba(139, 118, 246, 0.04)",
-  auroraTertiary: "rgba(0, 0, 0, 0)",
+  auroraPrimary: "rgba(56, 189, 248, 0.115)",
+  auroraSecondary: "rgba(139, 118, 246, 0.075)",
+  auroraTertiary: "rgba(14, 165, 233, 0.105)",
+  daySelectedNumber: "#FFFFFF",
+  daySelectedGlow: "rgba(56, 189, 248, 0.42)",
 };
 
 type AccentDefinition = {
   scale: Scale7;
   auroraPrimary: string;
   auroraSecondary: string;
+  auroraTertiary: string;
+  daySelectedGlow: string;
   secondaryAccent: string;
 };
 
@@ -273,8 +283,10 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#BAE6FD",
       900: "#082F49",
     },
-    auroraPrimary: "rgba(56, 152, 248, 0.11)",
-    auroraSecondary: "rgba(139, 118, 246, 0.08)",
+    auroraPrimary: "rgba(56, 152, 248, 0.10)",
+    auroraSecondary: "rgba(139, 118, 246, 0.065)",
+    auroraTertiary: "rgba(56, 152, 248, 0.09)",
+    daySelectedGlow: "rgba(56, 189, 248, 0.34)",
     secondaryAccent: "#A78BFA",
   },
   indigo: {
@@ -287,8 +299,10 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#C7D2FE",
       900: "#1E1B4B",
     },
-    auroraPrimary: "rgba(99, 102, 241, 0.11)",
-    auroraSecondary: "rgba(56, 189, 248, 0.07)",
+    auroraPrimary: "rgba(99, 102, 241, 0.105)",
+    auroraSecondary: "rgba(56, 189, 248, 0.065)",
+    auroraTertiary: "rgba(129, 140, 248, 0.09)",
+    daySelectedGlow: "rgba(129, 140, 248, 0.35)",
     secondaryAccent: "#38BDF8",
   },
   violet: {
@@ -301,8 +315,10 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#DDD6FE",
       900: "#2E1065",
     },
-    auroraPrimary: "rgba(139, 92, 246, 0.11)",
-    auroraSecondary: "rgba(56, 189, 248, 0.07)",
+    auroraPrimary: "rgba(139, 92, 246, 0.105)",
+    auroraSecondary: "rgba(56, 189, 248, 0.065)",
+    auroraTertiary: "rgba(167, 139, 250, 0.09)",
+    daySelectedGlow: "rgba(167, 139, 250, 0.35)",
     secondaryAccent: "#38BDF8",
   },
   menthe: {
@@ -315,8 +331,10 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#A7F3D0",
       900: "#022C22",
     },
-    auroraPrimary: "rgba(16, 185, 129, 0.10)",
-    auroraSecondary: "rgba(56, 189, 248, 0.07)",
+    auroraPrimary: "rgba(16, 185, 129, 0.095)",
+    auroraSecondary: "rgba(56, 189, 248, 0.06)",
+    auroraTertiary: "rgba(52, 211, 153, 0.085)",
+    daySelectedGlow: "rgba(52, 211, 153, 0.32)",
     secondaryAccent: "#38BDF8",
   },
   corail: {
@@ -329,8 +347,10 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#FECDD3",
       900: "#4C0519",
     },
-    auroraPrimary: "rgba(244, 63, 94, 0.10)",
-    auroraSecondary: "rgba(167, 139, 250, 0.07)",
+    auroraPrimary: "rgba(244, 63, 94, 0.095)",
+    auroraSecondary: "rgba(167, 139, 250, 0.06)",
+    auroraTertiary: "rgba(251, 113, 133, 0.085)",
+    daySelectedGlow: "rgba(251, 113, 133, 0.34)",
     secondaryAccent: "#A78BFA",
   },
   ambre: {
@@ -344,7 +364,9 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       900: "#451A03",
     },
     auroraPrimary: "rgba(245, 158, 11, 0.09)",
-    auroraSecondary: "rgba(56, 189, 248, 0.07)",
+    auroraSecondary: "rgba(56, 189, 248, 0.06)",
+    auroraTertiary: "rgba(251, 191, 36, 0.08)",
+    daySelectedGlow: "rgba(251, 191, 36, 0.32)",
     secondaryAccent: "#38BDF8",
   },
 };
@@ -354,6 +376,8 @@ const CLAIR_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     scale: clairThemeBase.glacier,
     auroraPrimary: "rgba(14, 165, 233, 0.09)",
     auroraSecondary: "rgba(124, 58, 237, 0.06)",
+    auroraTertiary: "rgba(14, 165, 233, 0.085)",
+    daySelectedGlow: "rgba(2, 132, 199, 0.24)",
     secondaryAccent: "#7C3AED",
   },
   indigo: {
@@ -366,32 +390,42 @@ const CLAIR_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#3730A3",
       900: "#312E81",
     },
-    auroraPrimary: "rgba(79, 70, 229, 0.08)",
+    auroraPrimary: "rgba(79, 70, 229, 0.085)",
     auroraSecondary: "rgba(14, 165, 233, 0.06)",
+    auroraTertiary: "rgba(79, 70, 229, 0.08)",
+    daySelectedGlow: "rgba(79, 70, 229, 0.24)",
     secondaryAccent: "#0284C7",
   },
   violet: {
     scale: clairThemeBase.violet,
-    auroraPrimary: "rgba(124, 58, 237, 0.08)",
+    auroraPrimary: "rgba(124, 58, 237, 0.085)",
     auroraSecondary: "rgba(14, 165, 233, 0.06)",
+    auroraTertiary: "rgba(124, 58, 237, 0.08)",
+    daySelectedGlow: "rgba(124, 58, 237, 0.24)",
     secondaryAccent: "#0284C7",
   },
   menthe: {
     scale: clairThemeBase.menthe,
-    auroraPrimary: "rgba(5, 150, 105, 0.08)",
+    auroraPrimary: "rgba(5, 150, 105, 0.085)",
     auroraSecondary: "rgba(14, 165, 233, 0.06)",
+    auroraTertiary: "rgba(5, 150, 105, 0.08)",
+    daySelectedGlow: "rgba(5, 150, 105, 0.24)",
     secondaryAccent: "#0284C7",
   },
   corail: {
     scale: clairThemeBase.corail,
-    auroraPrimary: "rgba(225, 29, 72, 0.08)",
+    auroraPrimary: "rgba(225, 29, 72, 0.085)",
     auroraSecondary: "rgba(124, 58, 237, 0.05)",
+    auroraTertiary: "rgba(225, 29, 72, 0.08)",
+    daySelectedGlow: "rgba(225, 29, 72, 0.24)",
     secondaryAccent: "#7C3AED",
   },
   ambre: {
     scale: clairThemeBase.ambre,
-    auroraPrimary: "rgba(217, 119, 6, 0.08)",
+    auroraPrimary: "rgba(217, 119, 6, 0.085)",
     auroraSecondary: "rgba(14, 165, 233, 0.05)",
+    auroraTertiary: "rgba(217, 119, 6, 0.08)",
+    daySelectedGlow: "rgba(217, 119, 6, 0.24)",
     secondaryAccent: "#0284C7",
   },
 };
@@ -407,8 +441,10 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#BAE6FD",
       900: "#082F49",
     },
-    auroraPrimary: "rgba(56, 152, 248, 0.05)",
-    auroraSecondary: "rgba(139, 118, 246, 0.035)",
+    auroraPrimary: "rgba(56, 189, 248, 0.115)",
+    auroraSecondary: "rgba(139, 118, 246, 0.075)",
+    auroraTertiary: "rgba(14, 165, 233, 0.105)",
+    daySelectedGlow: "rgba(56, 189, 248, 0.42)",
     secondaryAccent: "#A78BFA",
   },
   indigo: {
@@ -421,8 +457,10 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#C7D2FE",
       900: "#1E1B4B",
     },
-    auroraPrimary: "rgba(99, 102, 241, 0.05)",
-    auroraSecondary: "rgba(56, 189, 248, 0.035)",
+    auroraPrimary: "rgba(99, 102, 241, 0.12)",
+    auroraSecondary: "rgba(56, 189, 248, 0.075)",
+    auroraTertiary: "rgba(129, 140, 248, 0.105)",
+    daySelectedGlow: "rgba(129, 140, 248, 0.42)",
     secondaryAccent: "#38BDF8",
   },
   violet: {
@@ -435,8 +473,10 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#DDD6FE",
       900: "#2E1065",
     },
-    auroraPrimary: "rgba(139, 92, 246, 0.05)",
-    auroraSecondary: "rgba(56, 189, 248, 0.035)",
+    auroraPrimary: "rgba(139, 92, 246, 0.12)",
+    auroraSecondary: "rgba(56, 189, 248, 0.075)",
+    auroraTertiary: "rgba(167, 139, 250, 0.105)",
+    daySelectedGlow: "rgba(167, 139, 250, 0.42)",
     secondaryAccent: "#38BDF8",
   },
   menthe: {
@@ -449,8 +489,10 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#A7F3D0",
       900: "#022C22",
     },
-    auroraPrimary: "rgba(16, 185, 129, 0.05)",
-    auroraSecondary: "rgba(56, 189, 248, 0.035)",
+    auroraPrimary: "rgba(16, 185, 129, 0.11)",
+    auroraSecondary: "rgba(56, 189, 248, 0.07)",
+    auroraTertiary: "rgba(52, 211, 153, 0.10)",
+    daySelectedGlow: "rgba(52, 211, 153, 0.40)",
     secondaryAccent: "#38BDF8",
   },
   corail: {
@@ -463,8 +505,10 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#FECDD3",
       900: "#4C0519",
     },
-    auroraPrimary: "rgba(244, 63, 94, 0.05)",
-    auroraSecondary: "rgba(167, 139, 250, 0.035)",
+    auroraPrimary: "rgba(244, 63, 94, 0.115)",
+    auroraSecondary: "rgba(167, 139, 250, 0.07)",
+    auroraTertiary: "rgba(251, 113, 133, 0.10)",
+    daySelectedGlow: "rgba(251, 113, 133, 0.40)",
     secondaryAccent: "#A78BFA",
   },
   ambre: {
@@ -477,8 +521,10 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
       700: "#FDE68A",
       900: "#451A03",
     },
-    auroraPrimary: "rgba(245, 158, 11, 0.05)",
-    auroraSecondary: "rgba(56, 189, 248, 0.035)",
+    auroraPrimary: "rgba(245, 158, 11, 0.11)",
+    auroraSecondary: "rgba(56, 189, 248, 0.07)",
+    auroraTertiary: "rgba(251, 191, 36, 0.095)",
+    daySelectedGlow: "rgba(251, 191, 36, 0.40)",
     secondaryAccent: "#38BDF8",
   },
 };
@@ -538,6 +584,9 @@ export function resolveTheme(
     accentTiers: buildAccentTiers(def.scale),
     auroraPrimary: def.auroraPrimary,
     auroraSecondary: def.auroraSecondary,
+    auroraTertiary: def.auroraTertiary,
+    daySelectedNumber: base.isDark ? base.textOnAccent : def.scale[600],
+    daySelectedGlow: def.daySelectedGlow,
   };
 }
 
@@ -549,7 +598,7 @@ export const Themes: Record<BaseThemeMode, AppTheme> = {
 
 export const Colors = {
   light: Themes.clair,
-  dark: Themes.nuit,
+  dark: Themes.oled,
 };
 
 export type ThemeColor =
@@ -626,6 +675,23 @@ export function concentricRadius(outer: number, inset: number): number {
 }
 
 export const BottomTabInset = Platform.select({ ios: 74, android: 80 }) ?? 0;
+
+/**
+ * Marge basse du ScrollView dans un écran NativeTabs.
+ * Sur iOS (`contentInsetAdjustmentBehavior="automatic"`) et Android (`SafeAreaView` natif),
+ * la marge inférieure et la hauteur de la barre d'onglets sont déjà prises en charge par le système ;
+ * on ajoute uniquement la marge visuelle au-dessus de la barre d'onglets (symétrique à celle du dessous).
+ */
+export function getTabScrollPaddingBottom(bottomInset: number): number {
+  if (Platform.OS === "ios") {
+    return bottomInset > 0 ? Spacing.three + Spacing.one : Spacing.three;
+  }
+  if (Platform.OS === "android") {
+    return Spacing.three;
+  }
+  return BottomTabInset + Spacing.three;
+}
+
 export const MaxContentWidth = 800;
 
 const TINTS: TintName[] = ["glacier", "violet", "corail", "menthe", "ambre"];

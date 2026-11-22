@@ -57,7 +57,8 @@ export type ScheduleContextValue = {
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
 
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
-  const { accentPreset, themeMode } = useThemeContext();
+  const { theme, accentPreset } = useThemeContext();
+  const isOled = theme.name === "oled";
   const [icsUrl, setIcsUrlState] = useState<string>(currentIcsUrl);
   const [courses, setCourses] = useState<Course[]>([]);
   const [lastSync, setLastSync] = useState<number | null>(null);
@@ -182,23 +183,12 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   // 3. Synchroniser les widgets iOS dès que le cache, la synchro, le thème ou le dictionnaire changent
   useEffect(() => {
     if (courses.length === 0 && lastSync === null) return;
-    void syncWidgetsFromSchedule(
-      courses,
-      lastSync,
-      accentPreset,
-      themeMode === "oled"
-    );
-  }, [courses, lastSync, accentPreset, themeMode, subjectDict]);
+    void syncWidgetsFromSchedule(courses, lastSync, accentPreset, isOled);
+  }, [courses, lastSync, accentPreset, isOled, subjectDict]);
 
   const refreshWidgets = useCallback(
-    () =>
-      syncWidgetsFromSchedule(
-        courses,
-        lastSync,
-        accentPreset,
-        themeMode === "oled"
-      ),
-    [courses, lastSync, accentPreset, themeMode]
+    () => syncWidgetsFromSchedule(courses, lastSync, accentPreset, isOled),
+    [courses, lastSync, accentPreset, isOled]
   );
 
   const updateUrl = useCallback(
