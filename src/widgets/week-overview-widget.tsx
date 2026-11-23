@@ -378,7 +378,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                       modifiers={[
                         font({ size: 10, weight: "medium" }),
                         lineLimit(1),
-                        minimumScaleFactor(0.84),
+                        minimumScaleFactor(0.8),
                         foregroundStyle(
                           isTinted
                             ? { type: "hierarchical", style: "secondary" }
@@ -386,7 +386,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                         ),
                       ]}
                     >
-                      {row.room}
+                      {row.teacher ? `${row.room} · ${row.teacher}` : row.room}
                     </Text>
                   </VStack>
 

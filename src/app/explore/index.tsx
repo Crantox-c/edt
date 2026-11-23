@@ -21,9 +21,9 @@ import {
 } from "@/components/segmented-control";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { ThemedText } from "@/components/themed-text";
-import { AmbientBackground } from "@/components/ui/ambient-background";
 import { GlassButton } from "@/components/ui/glass-button";
 import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
+import { StatusBarProgressiveBlur } from "@/components/ui/status-bar-blur";
 import {
   FontFamilies,
   MaxContentWidth,
@@ -198,11 +198,11 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ title: "Réglages" }} />
 
       <ScrollViewMarker
-        style={[styles.scrollView, styles.scrollLayer]}
+        style={styles.scrollView}
         scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
       >
         <ScrollView
@@ -1024,7 +1024,7 @@ export default function SettingsScreen() {
         </ScrollView>
       </ScrollViewMarker>
 
-      <AmbientBackground />
+      <StatusBarProgressiveBlur />
 
       <ClassPickerModal
         visible={isClassPickerOpen}
@@ -1045,9 +1045,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  scrollLayer: {
-    zIndex: 1,
   },
   content: {
     maxWidth: MaxContentWidth,

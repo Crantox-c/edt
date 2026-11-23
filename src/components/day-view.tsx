@@ -21,6 +21,12 @@ import { EdrText, isEdrTextAvailable } from "@/components/ui/edr-text";
 import { GlassButton } from "@/components/ui/glass-button";
 import { GlassSurface } from "@/components/ui/glass-surface";
 import {
+  PhosphorDayStrip,
+  isPhosphorDayStripAvailable,
+  type PhosphorDayItem,
+  type PhosphorDaySelectEvent,
+} from "@/components/ui/phosphor-day-strip";
+import {
   FontFamilies,
   Radius,
   Spacing,
@@ -38,14 +44,14 @@ import {
   getParisDateString,
   getTodayParisDateString,
 } from "@/lib/dates";
-import { haptics } from "@/lib/haptics";
+import { haptics, useHapticsPreference } from "@/lib/haptics";
 import { Course } from "@/lib/geii-api";
 import { CourseCard } from "./course-card";
 import { NowIndicator } from "./now-indicator";
 
-const DAY_ITEM_WIDTH = 48;
-const TICKS_PER_DAY = 3;
-const TICK_STEP = DAY_ITEM_WIDTH / TICKS_PER_DAY;
+const DAY_ITEM_WIDTH = 58;
+const DAY_STRIP_HEIGHT = 50;
+const DAY_SELECT_DEBOUNCE_MS = 95;
 
 function diffDaysParis(fromStr: string, toStr: string): number {
   const [y1, m1, d1] = fromStr.split("-").map(Number);
@@ -77,17 +83,32 @@ export function DayView({
   const theme = useTheme();
   const accent = theme.accentTiers;
   const { isReduced } = useReducedMotion();
+  const { enabled: hapticsEnabled } = useHapticsPreference();
   const nowMs = useCurrentTime();
   const todayStr = getTodayParisDateString();
   const isToday = selectedDate === todayStr;
+  const useNativePhosphorStrip = isPhosphorDayStripAvailable();
   const useHardwareEdr = isEdrTextAvailable() && theme.isDark;
 
   const listRef = useRef<FlatList<string>>(null);
   const hasCenteredRef = useRef(false);
   const isUserScrollingRef = useRef(false);
-  const lastTickIndexRef = useRef(0);
-  const lastHapticAtRef = useRef(0);
+  const lastCenterIndexRef = useRef(-1);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [stripWidth, setStripWidth] = useState(0);
+  const [visualSelectedDate, setVisualSelectedDate] = useState<string | null>(
+    null
+  );
+
+  const activeVisualDate = visualSelectedDate ?? selectedDate;
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const dayCourses = useMemo(() => {
     return courses.filter((c) => getParisDateString(c.start) === selectedDate);
@@ -134,17 +155,18 @@ export function DayView({
     return Math.max(0, Math.min(daysList.length - 1, idx));
   }, [daysList, selectedDate]);
 
+  const sidePadding =
+    stripWidth > 0 ? Math.max(0, (stripWidth - DAY_ITEM_WIDTH) / 2) : 0;
+
   useEffect(() => {
-    if (stripWidth <= 0) return;
-    const totalContentWidth = daysList.length * DAY_ITEM_WIDTH;
-    const maxOffset = Math.max(0, totalContentWidth - stripWidth);
-    const rawOffset =
-      selectedIndex * DAY_ITEM_WIDTH + DAY_ITEM_WIDTH / 2 - stripWidth / 2;
-    const targetOffset = Math.max(0, Math.min(maxOffset, rawOffset));
+    if (useNativePhosphorStrip || stripWidth <= 0) return;
+    if (isUserScrollingRef.current) return;
+    const targetOffset = selectedIndex * DAY_ITEM_WIDTH;
     const animated = hasCenteredRef.current && !isReduced;
     hasCenteredRef.current = true;
+    lastCenterIndexRef.current = selectedIndex;
     listRef.current?.scrollToOffset({ offset: targetOffset, animated });
-  }, [selectedIndex, stripWidth, daysList.length, isReduced]);
+  }, [selectedIndex, stripWidth, isReduced, useNativePhosphorStrip]);
 
   // Jusqu'à 3 pastilles de couleur matière par jour sur la bande scrollable
   const dayTintsMap = useMemo(() => {
@@ -161,6 +183,22 @@ export function DayView({
     return map;
   }, [courses, theme]);
 
+  // Données structurées pour le sélecteur natif Metal EDR (Phosphor Trail)
+  const phosphorDays = useMemo<PhosphorDayItem[]>(
+    () =>
+      daysList.map((dStr) => {
+        const { weekday, dayNum } = formatDayShort(dStr);
+        return {
+          date: dStr,
+          weekday,
+          dayNum,
+          isToday: dStr === todayStr,
+          dots: dayTintsMap.get(dStr) ?? [],
+        };
+      }),
+    [daysList, todayStr, dayTintsMap]
+  );
+
   // Prochain jour avec un cours après la date sélectionnée (saut rapide sur jour libre)
   const nextActiveDate = useMemo(() => {
     const next = courses.find(
@@ -171,17 +209,68 @@ export function DayView({
 
   const handleToday = () => {
     haptics.soft();
+    setVisualSelectedDate(null);
     onSelectDate(todayStr);
   };
 
-  const handleTapDay = useCallback(
-    (dStr: string) => {
-      if (dStr !== selectedDate) {
-        haptics.selection();
-        onSelectDate(dStr);
+  const handleNativeSelectDay = useCallback(
+    (e: PhosphorDaySelectEvent) => {
+      const nextDate = e.nativeEvent?.date;
+      if (nextDate && nextDate !== selectedDate) {
+        onSelectDate(nextDate);
       }
     },
     [onSelectDate, selectedDate]
+  );
+
+  const scheduleDebouncedSelect = useCallback(
+    (dateStr: string) => {
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
+        setVisualSelectedDate(null);
+        onSelectDate(dateStr);
+      }, DAY_SELECT_DEBOUNCE_MS);
+    },
+    [onSelectDate]
+  );
+
+  const flushFallbackSelection = useCallback(
+    (offsetX: number) => {
+      const idx = Math.max(
+        0,
+        Math.min(daysList.length - 1, Math.round(offsetX / DAY_ITEM_WIDTH))
+      );
+      const targetDate = daysList[idx];
+      if (!targetDate) return;
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      lastCenterIndexRef.current = idx;
+      setVisualSelectedDate(null);
+      if (targetDate !== selectedDate) {
+        onSelectDate(targetDate);
+      }
+    },
+    [daysList, onSelectDate, selectedDate]
+  );
+
+  const handleTapDay = useCallback(
+    (dStr: string, index: number) => {
+      listRef.current?.scrollToOffset({
+        offset: index * DAY_ITEM_WIDTH,
+        animated: !isReduced,
+      });
+      if (dStr !== activeVisualDate) {
+        haptics.selection();
+        setVisualSelectedDate(dStr);
+        scheduleDebouncedSelect(dStr);
+      }
+    },
+    [activeVisualDate, isReduced, scheduleDebouncedSelect]
   );
 
   const handleStripLayout = useCallback((e: LayoutChangeEvent) => {
@@ -191,46 +280,58 @@ export function DayView({
   const handleStripScrollBeginDrag = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       isUserScrollingRef.current = true;
-      lastTickIndexRef.current = Math.round(
-        e.nativeEvent.contentOffset.x / TICK_STEP
+      lastCenterIndexRef.current = Math.max(
+        0,
+        Math.min(
+          daysList.length - 1,
+          Math.round(e.nativeEvent.contentOffset.x / DAY_ITEM_WIDTH)
+        )
       );
     },
-    []
+    [daysList.length]
   );
 
   const handleStripScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (!isUserScrollingRef.current) return;
-      const tickIndex = Math.round(e.nativeEvent.contentOffset.x / TICK_STEP);
-      if (tickIndex === lastTickIndexRef.current) return;
+      if (daysList.length === 0) return;
+      const centerIdx = Math.max(
+        0,
+        Math.min(
+          daysList.length - 1,
+          Math.round(e.nativeEvent.contentOffset.x / DAY_ITEM_WIDTH)
+        )
+      );
+      if (centerIdx === lastCenterIndexRef.current) return;
+      lastCenterIndexRef.current = centerIdx;
 
-      const steps = Math.abs(tickIndex - lastTickIndexRef.current);
-      lastTickIndexRef.current = tickIndex;
+      const centeredDate = daysList[centerIdx];
+      if (!centeredDate) return;
 
-      const now = Date.now();
-      if (now - lastHapticAtRef.current < 24) return;
-      lastHapticAtRef.current = now;
-
-      if (Math.abs(tickIndex) % TICKS_PER_DAY === 0) {
-        haptics.wheelDayTick(steps >= 2);
-      } else {
-        haptics.wheelSubTick();
+      setVisualSelectedDate(centeredDate);
+      if (isUserScrollingRef.current) {
+        haptics.selection();
+        scheduleDebouncedSelect(centeredDate);
       }
     },
-    []
+    [daysList, scheduleDebouncedSelect]
   );
 
-  const handleStripMomentumEnd = useCallback(() => {
-    isUserScrollingRef.current = false;
-  }, []);
+  const handleStripMomentumEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isUserScrollingRef.current = false;
+      flushFallbackSelection(e.nativeEvent.contentOffset.x);
+    },
+    [flushFallbackSelection]
+  );
 
   const handleStripScrollEndDrag = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       if (Math.abs(e.nativeEvent.velocity?.x ?? 0) < 0.05) {
         isUserScrollingRef.current = false;
+        flushFallbackSelection(e.nativeEvent.contentOffset.x);
       }
     },
-    []
+    [flushFallbackSelection]
   );
 
   // Position de l'indicateur "maintenant" (hors d'un cours déjà actif)
@@ -248,15 +349,15 @@ export function DayView({
   );
 
   const renderDayItem = useCallback(
-    ({ item: dStr }: { item: string }) => {
+    ({ item: dStr, index }: { item: string; index: number }) => {
       const { weekday, dayNum } = formatDayShort(dStr);
-      const isSelected = dStr === selectedDate;
+      const isSelected = dStr === activeVisualDate;
       const isCurrentDay = dStr === todayStr;
       const dots = dayTintsMap.get(dStr) ?? [];
 
       return (
         <Pressable
-          onPress={() => handleTapDay(dStr)}
+          onPress={() => handleTapDay(dStr, index)}
           style={styles.dayTab}
           accessibilityRole="button"
           accessibilityState={{ selected: isSelected }}
@@ -316,7 +417,6 @@ export function DayView({
                     : FontFamilies.monoMedium,
                 },
                 isSelected && {
-                  transform: [{ scale: 1.08 }],
                   textShadowColor: theme.isDark ? accent.primary : accent.border,
                   textShadowOffset: { width: 0, height: 0 },
                   textShadowRadius: theme.isDark ? 12 : 6,
@@ -352,9 +452,9 @@ export function DayView({
     [
       accent.border,
       accent.primary,
+      activeVisualDate,
       dayTintsMap,
       handleTapDay,
-      selectedDate,
       theme,
       todayStr,
       useHardwareEdr,
@@ -363,16 +463,34 @@ export function DayView({
 
   return (
     <View style={styles.container}>
-      {/* Bande de jours compacte, arrondie, plus étroite et scrollable horizontalement */}
+      {/* Pilule de jours centrée : fond Liquid Glass en frère + couche Metal EDR sans masque 8-bit */}
       <View style={styles.weekStripOuter}>
         <GlassSurface
           glassEffectStyle="regular"
-          style={styles.weekStripSurface}
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.weekStripGlassBg]}
           fallbackStyle={{
             backgroundColor: theme.backgroundElement,
             borderColor: theme.border,
           }}
-        >
+        />
+        {useNativePhosphorStrip ? (
+          <PhosphorDayStrip
+            days={phosphorDays}
+            selectedIndex={selectedIndex}
+            itemWidth={DAY_ITEM_WIDTH}
+            accentColor={accent.primary}
+            selectedTextColor={theme.daySelectedNumber}
+            weekdayColor={theme.textSecondary}
+            numberColor={theme.text}
+            todayColor={accent.primary}
+            isDark={theme.isDark}
+            hapticsEnabled={hapticsEnabled}
+            reducedMotion={isReduced}
+            onSelectDay={handleNativeSelectDay}
+            style={styles.phosphorStrip}
+          />
+        ) : (
           <View style={styles.daysListMask} onLayout={handleStripLayout}>
             <FlatList
               ref={listRef}
@@ -380,9 +498,12 @@ export function DayView({
               data={daysList}
               keyExtractor={(item) => item}
               renderItem={renderDayItem}
-              extraData={{ selectedDate, dayTintsMap, theme, useHardwareEdr }}
+              extraData={{ activeVisualDate, dayTintsMap, theme, useHardwareEdr }}
+              contentContainerStyle={{ paddingHorizontal: sidePadding }}
               showsHorizontalScrollIndicator={false}
-              decelerationRate="fast"
+              decelerationRate="normal"
+              snapToInterval={DAY_ITEM_WIDTH}
+              snapToAlignment="start"
               scrollEventThrottle={16}
               onScrollBeginDrag={handleStripScrollBeginDrag}
               onScroll={handleStripScroll}
@@ -392,7 +513,7 @@ export function DayView({
               windowSize={5}
               getItemLayout={(_, index) => ({
                 length: DAY_ITEM_WIDTH,
-                offset: DAY_ITEM_WIDTH * index,
+                offset: sidePadding + DAY_ITEM_WIDTH * index,
                 index,
               })}
               onScrollToIndexFailed={(info) => {
@@ -403,7 +524,7 @@ export function DayView({
               }}
             />
           </View>
-        </GlassSurface>
+        )}
       </View>
 
       {/* En-tête du jour sélectionné + résumé volume horaire */}
@@ -625,24 +746,30 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   weekStripOuter: {
-    width: "84%",
-    maxWidth: 340,
+    width: "90%",
+    maxWidth: 356,
+    height: DAY_STRIP_HEIGHT,
     alignSelf: "center",
+    position: "relative",
   },
-  weekStripSurface: {
+  weekStripGlassBg: {
     borderRadius: Radius.pill,
     borderCurve: "continuous",
-    paddingVertical: 3,
-    paddingHorizontal: 6,
+  },
+  phosphorStrip: {
+    flex: 1,
+    width: "100%",
+    height: DAY_STRIP_HEIGHT,
   },
   daysListMask: {
+    flex: 1,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
     overflow: "hidden",
   },
   dayTab: {
     width: DAY_ITEM_WIDTH,
-    height: 40,
+    height: DAY_STRIP_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",

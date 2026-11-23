@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import Metal
 import UIKit
 
 public final class EdrTextModule: Module {
@@ -12,6 +13,10 @@ public final class EdrTextModule: Module {
       }
       #endif
       return false
+    }
+
+    Constant("isPhosphorStripAvailable") {
+      return MTLCreateSystemDefaultDevice() != nil
     }
 
     Function("boostGlassEdr") {
@@ -59,5 +64,67 @@ public final class EdrTextModule: Module {
     }
 
     View(StatusBarEdgeBlurView.self) {}
+
+    View(PhosphorDayStripView.self) {
+      Events("onSelectDay")
+
+      Prop("days") { (view, days: [[String: Any]]) in
+        view.rawDays = days
+      }
+
+      Prop("selectedIndex") { (view, selectedIndex: Int?) in
+        view.requestedSelectedIndex = selectedIndex ?? 0
+      }
+
+      Prop("itemWidth") { (view, itemWidth: Double?) in
+        view.itemWidthProp = CGFloat(itemWidth ?? 58.0)
+      }
+
+      Prop("accentColor") { (view, color: UIColor?) in
+        if let color {
+          view.accentColorProp = color
+        }
+      }
+
+      Prop("selectedTextColor") { (view, color: UIColor?) in
+        if let color {
+          view.selectedTextColorProp = color
+        }
+      }
+
+      Prop("weekdayColor") { (view, color: UIColor?) in
+        if let color {
+          view.weekdayColorProp = color
+        }
+      }
+
+      Prop("numberColor") { (view, color: UIColor?) in
+        if let color {
+          view.numberColorProp = color
+        }
+      }
+
+      Prop("todayColor") { (view, color: UIColor?) in
+        if let color {
+          view.todayColorProp = color
+        }
+      }
+
+      Prop("isDark") { (view, isDark: Bool?) in
+        view.isDarkProp = isDark ?? true
+      }
+
+      Prop("hapticsEnabled") { (view, enabled: Bool?) in
+        view.hapticsEnabledProp = enabled ?? true
+      }
+
+      Prop("reducedMotion") { (view, reduced: Bool?) in
+        view.reducedMotionProp = reduced ?? false
+      }
+
+      OnViewDidUpdateProps { view in
+        view.applyUpdatedProps()
+      }
+    }
   }
 }

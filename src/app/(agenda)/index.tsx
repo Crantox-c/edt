@@ -35,12 +35,12 @@ import {
   type SegmentedOption,
 } from "@/components/segmented-control";
 import { ThemedText } from "@/components/themed-text";
-import { AmbientBackground } from "@/components/ui/ambient-background";
 import { GlassButton } from "@/components/ui/glass-button";
 import {
   GlassSurface,
   GlassSurfaceContainer,
 } from "@/components/ui/glass-surface";
+import { StatusBarProgressiveBlur } from "@/components/ui/status-bar-blur";
 import { WeekView } from "@/components/week-view";
 import {
   MaxContentWidth,
@@ -228,7 +228,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+    <View style={styles.screen}>
       <Stack.Screen options={{ title: "Emploi du temps" }} />
       {Platform.OS === "ios" && (
         <Stack.Toolbar placement="right">
@@ -266,7 +266,7 @@ export default function HomeScreen() {
       )}
 
       <ScrollViewMarker
-        style={[styles.scrollView, styles.scrollLayer]}
+        style={styles.scrollView}
         scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
       >
         <ScrollView
@@ -603,7 +603,7 @@ export default function HomeScreen() {
         </ScrollView>
       </ScrollViewMarker>
 
-      <AmbientBackground />
+      <StatusBarProgressiveBlur />
 
       {/* Feuille détail du cours */}
       <CourseDetailModal
@@ -641,9 +641,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  scrollLayer: {
-    zIndex: 1,
   },
   content: {
     maxWidth: MaxContentWidth,

@@ -439,14 +439,14 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                     modifiers={[
                       font({ size: 11, weight: "medium" }),
                       lineLimit(1),
-                      minimumScaleFactor(0.8),
+                      minimumScaleFactor(0.75),
                       foregroundStyle({
                         type: "hierarchical",
                         style: "secondary",
                       }),
                     ]}
                   >
-                    {`· ${course.compactRoom}`}
+                    {`· ${course.compactRoom}${course.teacher ? ` · ${course.teacher}` : ""}`}
                   </Text>
                 </HStack>
               ) : (
@@ -455,14 +455,14 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                     font({ size: 11, weight: "medium", design: "monospaced" }),
                     monospacedDigit(),
                     lineLimit(1),
-                    minimumScaleFactor(0.8),
+                    minimumScaleFactor(0.75),
                     foregroundStyle({
                       type: "hierarchical",
                       style: "secondary",
                     }),
                   ]}
                 >
-                  {`${course.startLabel}–${course.endLabel} · ${course.compactRoom}`}
+                  {`${course.startLabel}–${course.endLabel} · ${course.compactRoom}${course.teacher ? ` · ${course.teacher}` : ""}`}
                 </Text>
               )}
             </>
@@ -522,7 +522,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
     return (
       <VStack
         alignment="leading"
-        spacing={6}
+        spacing={4}
         modifiers={[
           frame({
             maxWidth: Infinity,
@@ -619,7 +619,31 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               </Text>
             </HStack>
 
-            <Spacer minLength={2} />
+            {Boolean(course.teacher) && (
+              <HStack alignment="center" spacing={4}>
+                <Image
+                  systemName="person.fill"
+                  size={9.5}
+                  color={palette.textSecondary}
+                />
+                <Text
+                  modifiers={[
+                    font({ size: 10.5, weight: "medium" }),
+                    lineLimit(1),
+                    minimumScaleFactor(0.8),
+                    foregroundStyle(
+                      isTinted
+                        ? { type: "hierarchical", style: "secondary" }
+                        : palette.textSecondary
+                    ),
+                  ]}
+                >
+                  {course.teacher}
+                </Text>
+              </HStack>
+            )}
+
+            <Spacer minLength={1} />
 
             {isActive ? (
               <VStack alignment="leading" spacing={4}>

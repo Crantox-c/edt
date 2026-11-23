@@ -1,28 +1,25 @@
 import ExpoModulesCore
 import UIKit
 
+/// Relie explicitement le `UIScrollView` vertical principal de l'écran au `UIViewController`
+/// hôte (`setContentScrollView(_:for: .all)`) et active `topEdgeEffect` / `bottomEdgeEffect`
+/// en style `.soft` sur iOS 26+.
+/// Résout le déblocage du repli des grands titres (`UINavigationBar`) et garantit le flou
+/// progressif natif en haut et en bas sur chaque onglet (Agenda, Réglages, Recherche).
 public final class StatusBarEdgeBlurView: ExpoView {
-  private let edgeAnchorView = UIView()
-  private var edgeInteraction: AnyObject?
+  private weak var boundScrollView: UIScrollView?
+  private weak var boundController: UIViewController?
 
   public required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
-
     isUserInteractionEnabled = false
     backgroundColor = .clear
-    clipsToBounds = false
-
-    edgeAnchorView.isUserInteractionEnabled = false
-    edgeAnchorView.backgroundColor = .clear
-    addSubview(edgeAnchorView)
+    clipsToBounds = true
   }
 
   override public func layoutSubviews() {
     super.layoutSubviews()
-    edgeAnchorView.frame = bounds
-    if edgeInteraction == nil {
-      attachIfPossible()
-    }
+    attachIfPossible()
   }
 
   override public func didMoveToWindow() {
@@ -32,59 +29,86 @@ public final class StatusBarEdgeBlurView: ExpoView {
       DispatchQueue.main.async { [weak self] in
         self?.attachIfPossible()
       }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        self?.attachIfPossible()
+      }
     }
   }
 
-  private func findPrimaryScrollView(in root: UIView) -> UIScrollView? {
+  private func findOwningViewController() -> UIViewController? {
+    var responder: UIResponder? = self
+    while let current = responder {
+      if let vc = current as? UIViewController {
+        return vc
+      }
+      responder = current.next
+    }
+    return nil
+  }
+
+  private func findPrimaryVerticalScrollView(in root: UIView) -> UIScrollView? {
+    // Parcours en largeur (BFS) pour cibler le ScrollView principal de l'écran
+    // avant les ScrollViews horizontaux imbriqués (bandeau jours, grille semaine, etc.).
+    var queue: [UIView] = [root]
+    var index = 0
     var fallback: UIScrollView?
 
-    func walk(_ view: UIView) -> UIScrollView? {
+    while index < queue.count {
+      let view = queue[index]
+      index += 1
+
       if view === self {
-        return nil
+        continue
       }
+
       if let scrollView = view as? UIScrollView {
-        if fallback == nil {
-          fallback = scrollView
+        let isHorizontalOnly = scrollView.alwaysBounceHorizontal && !scrollView.alwaysBounceVertical
+        if !isHorizontalOnly {
+          if fallback == nil {
+            fallback = scrollView
+          }
+          if scrollView.bounds.height > 120 {
+            return scrollView
+          }
         }
-        if scrollView.bounds.height > 120 {
-          return scrollView
-        }
+        continue
       }
+
       for child in view.subviews {
-        if let found = walk(child) {
-          return found
-        }
+        queue.append(child)
       }
-      return nil
     }
 
-    return walk(root) ?? fallback
+    return fallback
   }
 
   private func attachIfPossible() {
+    guard window != nil else { return }
+
+    let owningVC = findOwningViewController()
+    let searchRoot = owningVC?.view ?? superview
+    guard let root = searchRoot,
+          let scrollView = findPrimaryVerticalScrollView(in: root) else {
+      return
+    }
+
+    if let vc = owningVC {
+      let alreadyBound = (boundController === vc && boundScrollView === scrollView)
+      if !alreadyBound || vc.contentScrollView(for: .top) !== scrollView {
+        vc.setContentScrollView(scrollView, for: .all)
+        vc.navigationController?.navigationBar.setNeedsLayout()
+      }
+      boundController = vc
+    }
+
+    boundScrollView = scrollView
+
     #if compiler(>=6.2)
     if #available(iOS 26.0, *) {
-      guard let hostView = superview,
-            let scrollView = findPrimaryScrollView(in: hostView) else {
-        return
-      }
-
       scrollView.topEdgeEffect.isHidden = false
       scrollView.topEdgeEffect.style = .soft
-
-      if let existing = edgeInteraction as? UIScrollEdgeElementContainerInteraction,
-         existing.scrollView === scrollView {
-        return
-      }
-      if let previous = edgeInteraction as? UIInteraction {
-        removeInteraction(previous)
-      }
-
-      let interaction = UIScrollEdgeElementContainerInteraction()
-      interaction.scrollView = scrollView
-      interaction.edge = .top
-      addInteraction(interaction)
-      edgeInteraction = interaction
+      scrollView.bottomEdgeEffect.isHidden = false
+      scrollView.bottomEdgeEffect.style = .soft
     }
     #endif
   }

@@ -9,10 +9,10 @@ import { CourseCard } from "@/components/course-card";
 import { CourseDetailModal } from "@/components/course-detail-modal";
 import { SearchBar } from "@/components/search-bar";
 import { ThemedText } from "@/components/themed-text";
-import { AmbientBackground } from "@/components/ui/ambient-background";
 import { GlassButton } from "@/components/ui/glass-button";
 import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
 import { PressableScale } from "@/components/ui/pressable-scale";
+import { StatusBarProgressiveBlur } from "@/components/ui/status-bar-blur";
 import {
   MaxContentWidth,
   Radius,
@@ -160,7 +160,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+    <View style={styles.screen}>
       <Stack.Screen
         options={{
           title: "Recherche",
@@ -181,7 +181,7 @@ export default function SearchScreen() {
       />
 
       <ScrollViewMarker
-        style={[styles.scrollView, styles.scrollLayer]}
+        style={styles.scrollView}
         scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
       >
         <ScrollView
@@ -397,7 +397,7 @@ export default function SearchScreen() {
         </ScrollView>
       </ScrollViewMarker>
 
-      <AmbientBackground />
+      <StatusBarProgressiveBlur />
 
       <CourseDetailModal
         course={activeCourse}
@@ -414,9 +414,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  scrollLayer: {
-    zIndex: 1,
   },
   content: {
     maxWidth: MaxContentWidth,

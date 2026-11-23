@@ -273,7 +273,7 @@ const DayAgendaWidget = createWidget<DayAgendaWidgetProps>(
                       modifiers={[
                         font({ size: 10, weight: "medium" }),
                         lineLimit(1),
-                        minimumScaleFactor(0.85),
+                        minimumScaleFactor(0.8),
                         foregroundStyle(
                           isTinted
                             ? { type: "hierarchical", style: "secondary" }
@@ -281,7 +281,7 @@ const DayAgendaWidget = createWidget<DayAgendaWidgetProps>(
                         ),
                       ]}
                     >
-                      {row.room}
+                      {row.teacher ? `${row.room} · ${row.teacher}` : row.room}
                     </Text>
                   </VStack>
 

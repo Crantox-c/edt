@@ -186,7 +186,7 @@ function buildCourseRow(
     title: readable ?? course.title,
     rawTitle: course.title,
     subject: course.subject,
-    teacher: course.teacher ?? "",
+    teacher: (course.teacher ?? "").trim(),
     room: course.room ?? "salle non communiquée",
     compactRoom: course.room ?? "Salle N.C.",
     startMs: course.start,
