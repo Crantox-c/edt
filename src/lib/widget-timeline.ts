@@ -589,7 +589,7 @@ function collectTimelineTimestamps(courses: Course[], nowMs: number): number[] {
     }
   }
 
-  return compact.slice(0, 28);
+  return compact.slice(0, 16);
 }
 
 /**

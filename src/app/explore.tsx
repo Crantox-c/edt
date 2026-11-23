@@ -809,6 +809,9 @@ export default function SettingsScreen() {
                 Dernière synchronisation widget :{" "}
                 {formatTime(widgetStatus.lastSyncAt)} ·{" "}
                 {widgetStatus.entryCount} entrées
+                {widgetStatus.appGroupAccessible === true
+                  ? " · App Group OK"
+                  : ""}
               </ThemedText>
             )}
 
@@ -831,13 +834,11 @@ export default function SettingsScreen() {
               </View>
             )}
 
-            {!widgetsReady && (
-              <ThemedText type="caption" themeColor="textSecondary">
-                Les widgets natifs fonctionnent hors ligne depuis le cache local
-                GEII et nécessitent un development build via EAS Build (non
-                inclus dans Expo Go).
-              </ThemedText>
-            )}
+            <ThemedText type="caption" themeColor="textMuted">
+              {widgetsReady
+                ? "Après une mise à jour de l'app, recompilez l'IPA depuis GitHub Actions puis réinstallez-le avec votre outil de signature en conservant l'App Group partagé."
+                : "Les widgets natifs fonctionnent hors ligne depuis le cache local GEII et nécessitent un build iOS natif (non inclus dans Expo Go)."}
+            </ThemedText>
           </View>
 
           {/* 5. Dictionnaire éditable des matières */}

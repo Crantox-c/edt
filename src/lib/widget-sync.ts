@@ -12,9 +12,15 @@ type LoadedWidgets = {
   weekOverview: typeof import("@/widgets/week-overview-widget").default;
 };
 
+type NativeExpoWidgetsModule = {
+  widgetsDirectory?: string | null;
+  reloadAllWidgets?: () => void;
+};
+
 export type WidgetSyncStatus = {
   lastSyncAt: number | null;
   entryCount: number;
+  appGroupAccessible: boolean | null;
   lastError: string | null;
 };
 
@@ -22,6 +28,7 @@ let widgetsPromise: Promise<LoadedWidgets> | null = null;
 let widgetSyncStatus: WidgetSyncStatus = {
   lastSyncAt: null,
   entryCount: 0,
+  appGroupAccessible: null,
   lastError: null,
 };
 const syncListeners = new Set<() => void>();
@@ -81,8 +88,8 @@ async function loadWidgets(): Promise<LoadedWidgets> {
 }
 
 /**
- * Calcule la timeline hors-ligne depuis le cache local GEII et pousse les entrées
- * vers les 3 widgets WidgetKit iOS. Ne fait rien hors development build iOS.
+ * Calcule la timeline hors-ligne depuis le cache local GEII, pousse les entrées
+ * vers les 3 widgets WidgetKit iOS et vérifie l'accès au conteneur App Group partagé.
  */
 export async function syncWidgetsFromSchedule(
   courses: Course[],
@@ -95,6 +102,8 @@ export async function syncWidgetsFromSchedule(
   }
 
   try {
+    const nativeModule =
+      requireOptionalNativeModule<NativeExpoWidgetsModule>("ExpoWidgets");
     const widgets = await loadWidgets();
     const subjectDict = getSubjectDictionarySnapshot();
     const payload = buildWidgetTimelines(
@@ -108,10 +117,46 @@ export async function syncWidgetsFromSchedule(
     widgets.nextCourse.updateTimeline(payload.nextCourseEntries);
     widgets.dayAgenda.updateTimeline(payload.dayAgendaEntries);
     widgets.weekOverview.updateTimeline(payload.weekOverviewEntries);
+    nativeModule?.reloadAllWidgets?.();
+
+    const appGroupAccessible =
+      nativeModule != null ? nativeModule.widgetsDirectory != null : null;
+
+    if (appGroupAccessible === false) {
+      widgetSyncStatus = {
+        lastSyncAt: null,
+        entryCount: 0,
+        appGroupAccessible: false,
+        lastError:
+          "Conteneur App Group partagé inaccessible : l'app a été signée sans App Group partagé entre l'app et les widgets.",
+      };
+      notifyWidgetSyncListeners();
+      return false;
+    }
+
+    let confirmedCount = payload.dayAgendaEntries.length;
+    try {
+      const persisted = await widgets.dayAgenda.getTimeline();
+      if (persisted.length === 0 && payload.dayAgendaEntries.length > 0) {
+        widgetSyncStatus = {
+          lastSyncAt: null,
+          entryCount: 0,
+          appGroupAccessible,
+          lastError:
+            "Les entrées widget n'ont pas pu être relues depuis le stockage partagé App Group.",
+        };
+        notifyWidgetSyncListeners();
+        return false;
+      }
+      confirmedCount = persisted.length;
+    } catch {
+      // Si getTimeline échoue ponctuellement mais widgetsDirectory est accessible, garder payload count
+    }
 
     widgetSyncStatus = {
       lastSyncAt: Date.now(),
-      entryCount: payload.nextCourseEntries.length,
+      entryCount: confirmedCount,
+      appGroupAccessible,
       lastError: null,
     };
     notifyWidgetSyncListeners();
