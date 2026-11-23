@@ -11,7 +11,7 @@ import {
 } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { extractFloor, formatDuration, formatTime } from "@/lib/dates";
-import { Course } from "@/lib/ics";
+import { Course, isCourseDS } from "@/lib/geii-api";
 import {
   getCourseNotesSnapshot,
   subscribeCourseNotes,
@@ -62,8 +62,7 @@ export function CourseCard({
   const personalNote = notesMap[course.key];
 
   const tokens = getCourseColorTokens(course.subject, course.kind, theme);
-  const isDS =
-    course.kind === "DS" || course.title.toUpperCase().includes("_DS");
+  const isDS = isCourseDS(course);
 
   const activeProgress =
     isActive && nowMs !== undefined
@@ -271,6 +270,28 @@ export function CourseCard({
                 )}
               </View>
             </View>
+
+            {course.teacher && (
+              <View style={styles.teacherRow}>
+                <SymbolView
+                  name={{
+                    ios: "person.fill",
+                    android: "person",
+                    web: "person",
+                  }}
+                  size={compact ? 10 : 11}
+                  tintColor={isPast ? theme.textMuted : theme.textSecondary}
+                />
+                <ThemedText
+                  type="caption"
+                  themeColor={isPast ? "textMuted" : "textSecondary"}
+                  style={styles.teacherText}
+                  numberOfLines={1}
+                >
+                  {course.teacher}
+                </ThemedText>
+              </View>
+            )}
 
             <View style={styles.footerRow}>
               <View style={styles.roomRow}>
@@ -514,6 +535,14 @@ const styles = StyleSheet.create({
   promoLabel: {
     fontSize: 11,
     lineHeight: 14,
+  },
+  teacherRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  teacherText: {
+    flexShrink: 1,
   },
   footerRow: {
     flexDirection: "row",

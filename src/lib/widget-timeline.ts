@@ -19,7 +19,7 @@ import {
   getParisMinutesOfDay,
   getWeekDays,
 } from "@/lib/dates";
-import { Course } from "@/lib/ics";
+import { Course, isCourseDS } from "@/lib/geii-api";
 import { resolveSubjectReadableName } from "@/lib/subject-names";
 
 export type SubjectDictionary = Record<string, string>;
@@ -50,6 +50,7 @@ export type WidgetCourseRow = {
   title: string;
   rawTitle: string;
   subject: string;
+  teacher: string;
   room: string;
   compactRoom: string;
   startMs: number;
@@ -160,10 +161,6 @@ function buildWidgetPalette(t: AppTheme): WidgetPalette {
   };
 }
 
-function isCourseDS(course: Course): boolean {
-  return course.kind === "DS" || course.title.toUpperCase().includes("_DS");
-}
-
 function buildCourseRow(
   course: Course,
   atMs: number,
@@ -189,6 +186,7 @@ function buildCourseRow(
     title: readable ?? course.title,
     rawTitle: course.title,
     subject: course.subject,
+    teacher: course.teacher ?? "",
     room: course.room ?? "salle non communiquée",
     compactRoom: course.room ?? "Salle N.C.",
     startMs: course.start,
@@ -595,7 +593,7 @@ function collectTimelineTimestamps(courses: Course[], nowMs: number): number[] {
 }
 
 /**
- * Construit les timelines complètes des 3 widgets iOS à partir du cache local ICS.
+ * Construit les timelines complètes des 3 widgets iOS à partir du cache local GEII.
  * Chaque entrée correspond à un début/fin de cours dans les 72 prochaines heures.
  */
 export function buildWidgetTimelines(

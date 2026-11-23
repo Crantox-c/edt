@@ -58,7 +58,7 @@ import {
   getTodayParisDateString,
 } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
-import { Course } from "@/lib/ics";
+import { Course } from "@/lib/geii-api";
 
 type ViewMode = "day" | "week" | "list";
 
@@ -98,13 +98,16 @@ export default function HomeScreen() {
   const accent = theme.accentTiers;
 
   const {
+    activeGroup,
     courses,
     lastSync,
     isSyncing,
+    loadingWeek,
     error,
     modifiedKeys,
     isStale,
     refresh,
+    ensureWeekLoaded,
   } = useSchedule();
 
   const {
@@ -127,6 +130,10 @@ export default function HomeScreen() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [syncSeq, setSyncSeq] = useState(0);
   const [hiddenSyncKey, setHiddenSyncKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    void ensureWeekLoaded(selectedMonday);
+  }, [selectedMonday, activeGroup.id, ensureWeekLoaded]);
 
   const syncKey = `${lastSync ?? "none"}-${syncSeq}`;
   const showSyncMeta = isSyncing || hiddenSyncKey !== syncKey;
@@ -360,7 +367,7 @@ export default function HomeScreen() {
                 onPress={handleManualRefresh}
                 haptic="toggle"
                 hitSlop={6}
-                accessibilityLabel="Actualiser le flux"
+                accessibilityLabel="Actualiser l'emploi du temps"
                 tintColor={accent.solidBg}
                 borderColor={accent.primary}
                 style={styles.circleActionBtn}
@@ -445,6 +452,7 @@ export default function HomeScreen() {
           onClearPromo={() => updateCriteria({ selectedPromo: null })}
           onClearKind={() => updateCriteria({ selectedKind: null })}
           onClearSubject={() => updateCriteria({ selectedSubject: null })}
+          onClearTeacher={() => updateCriteria({ selectedTeacher: null })}
           onClearTag={() => updateCriteria({ selectedTag: null })}
           onClearRoom={() => updateCriteria({ selectedRoom: null })}
           onClearFloor={() => updateCriteria({ selectedFloor: null })}
@@ -472,7 +480,7 @@ export default function HomeScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={theme.accent} />
             <ThemedText type="small" themeColor="textSecondary">
-              Synchronisation du flux ICS...
+              Chargement de l&apos;emploi du temps...
             </ThemedText>
           </View>
         ) : filteredCourses.length === 0 && isFiltering ? (
@@ -527,6 +535,7 @@ export default function HomeScreen() {
                 onSelectDate={handleSelectDate}
                 onSelectCourse={handleSelectCourse}
                 modifiedKeys={modifiedKeys}
+                isLoadingWeek={loadingWeek === getMondayOfWeek(selectedDate)}
               />
             )}
 
@@ -538,6 +547,7 @@ export default function HomeScreen() {
                 onSelectCourse={handleSelectCourse}
                 onGoToDay={handleGoToDay}
                 modifiedKeys={modifiedKeys}
+                isLoadingWeek={loadingWeek === selectedMonday}
               />
             )}
 

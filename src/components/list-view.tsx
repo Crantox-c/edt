@@ -12,7 +12,7 @@ import {
   getParisDateString,
   getTodayParisDateString,
 } from "@/lib/dates";
-import { Course } from "@/lib/ics";
+import { Course, isCourseDS } from "@/lib/geii-api";
 import { CourseCard } from "./course-card";
 
 type ListScope = "upcoming" | "all";
@@ -70,9 +70,7 @@ export function ListView({
       dateStr,
       title: formatDayHeaderCompact(dateStr),
       isToday: dateStr === todayStr,
-      hasDS: list.some(
-        (c) => c.kind === "DS" || c.title.toUpperCase().includes("_DS")
-      ),
+      hasDS: list.some((c) => isCourseDS(c)),
       duration: formatTotalDuration(list),
       data: list,
     }));

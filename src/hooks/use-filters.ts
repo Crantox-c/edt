@@ -8,7 +8,7 @@ import {
   filterCourses,
   FilterCriteria,
 } from "@/lib/filters";
-import { Course } from "@/lib/ics";
+import { Course } from "@/lib/geii-api";
 
 const FILTERS_STORAGE_KEY = "schedule:filters_v1";
 
@@ -52,6 +52,7 @@ export function useFilters(courses: Course[]) {
         selectedPromo: newCriteria.selectedPromo,
         selectedKind: newCriteria.selectedKind,
         selectedSubject: newCriteria.selectedSubject,
+        selectedTeacher: newCriteria.selectedTeacher,
         selectedTag: newCriteria.selectedTag,
         selectedRoom: newCriteria.selectedRoom,
         selectedFloor: newCriteria.selectedFloor,

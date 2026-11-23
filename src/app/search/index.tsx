@@ -30,7 +30,7 @@ import {
   getTodayParisDateString,
 } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
-import { Course } from "@/lib/ics";
+import { Course, isCourseDS } from "@/lib/geii-api";
 import {
   getSubjectDictionarySnapshot,
   resolveSubjectReadableName,
@@ -68,7 +68,7 @@ export default function SearchScreen() {
   const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
 
-  // Inventaire dynamique des matières depuis le flux ICS
+  // Inventaire dynamique des matières de la classe active
   const subjectInventory = useMemo(() => {
     const map = new Map<string, number>();
     for (const c of courses) {
@@ -95,8 +95,7 @@ export default function SearchScreen() {
       if (subjectFilter && c.subject !== subjectFilter) return false;
 
       if (quickFilter === "DS") {
-        const isDS = c.kind === "DS" || c.title.toUpperCase().includes("_DS");
-        if (!isDS || c.end < nowMs) return false;
+        if (!isCourseDS(c) || c.end < nowMs) return false;
       } else if (quickFilter === "TP" || quickFilter === "TUT") {
         if (c.kind !== quickFilter) return false;
       } else if (quickFilter === "SAE") {
@@ -107,6 +106,7 @@ export default function SearchScreen() {
         const readable = resolveSubjectReadableName(c.subject, subjectDict) ?? "";
         const haystack = [
           c.title,
+          c.teacher ?? "",
           c.subject,
           readable,
           c.room ?? "",
@@ -165,7 +165,7 @@ export default function SearchScreen() {
         options={{
           title: "Recherche",
           headerSearchBarOptions: {
-            placeholder: "Cours, salle, matière, tag...",
+            placeholder: "Cours, prof, salle, matière...",
             cancelButtonText: "Annuler",
             placement: "automatic",
             textColor: theme.text,
@@ -241,10 +241,10 @@ export default function SearchScreen() {
         </View>
 
         {!isSearching ? (
-          /* Découverte des matières extraites du flux ICS */
+          /* Découverte des matières de la classe active */
           <View style={styles.sectionBlock}>
             <ThemedText type="overline" themeColor="textSecondary">
-              Matières du flux ({subjectInventory.length})
+              Matières de la classe ({subjectInventory.length})
             </ThemedText>
 
             <View style={styles.subjectsGrid}>
@@ -290,7 +290,7 @@ export default function SearchScreen() {
                       themeColor="textSecondary"
                       numberOfLines={1}
                     >
-                      {item.readable ?? "Code brut ICS"}
+                      {item.readable ?? "Code matière"}
                     </ThemedText>
                   </PressableScale>
                 );

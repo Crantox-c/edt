@@ -13,6 +13,7 @@ import { ScrollViewMarker } from "react-native-screens/experimental";
 import { SymbolView } from "expo-symbols";
 
 import { AccentSwitcher } from "@/components/accent-switcher";
+import { ClassPickerModal } from "@/components/class-picker-modal";
 import {
   SegmentedControl,
   type SegmentedOption,
@@ -39,6 +40,7 @@ import {
 import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
 import { formatTime, formatTotalDuration } from "@/lib/dates";
+import { DEFAULT_API_BASE, isCourseDS } from "@/lib/geii-api";
 import { haptics, useHapticsPreference } from "@/lib/haptics";
 import { MAX_IOS_NOTIFICATIONS } from "@/lib/notifications";
 import {
@@ -47,27 +49,11 @@ import {
   setSubjectCustomName,
   subscribeSubjectDictionary,
 } from "@/lib/subject-names";
-import { DEFAULT_ICS_URL } from "@/lib/sync";
 import {
   getWidgetSyncStatusSnapshot,
   isWidgetsAvailable,
   subscribeWidgetSync,
 } from "@/lib/widget-sync";
-
-const PRESET_URLS = [
-  {
-    label: "ESEA (Défaut)",
-    url: DEFAULT_ICS_URL,
-  },
-  {
-    label: "ESEB",
-    url: "https://www.iuta-geii.univ-lille.fr/calendar/ICS_ETU/GEII+GEII_BUT2+BUT2_ESE+BUT2_ESEB.ics",
-  },
-  {
-    label: "Promo ESE",
-    url: "https://www.iuta-geii.univ-lille.fr/calendar/ICS_ETU/GEII+GEII_BUT2+BUT2_ESE.ics",
-  },
-];
 
 const LEAD_TIMES = [5, 10, 15, 30];
 
@@ -108,11 +94,14 @@ export default function SettingsScreen() {
   const corail = theme.corail;
 
   const {
-    icsUrl,
-    updateUrl,
+    groups,
+    activeGroup,
+    apiBaseUrl,
     courses,
     isSyncing,
     refresh,
+    selectGroup,
+    updateApiBaseUrl,
     refreshWidgets,
     notifications: {
       settings: notifSettings,
@@ -137,17 +126,17 @@ export default function SettingsScreen() {
   );
   const widgetsReady = isWidgetsAvailable();
 
-  const [editedUrl, setEditedUrl] = useState<string | null>(null);
+  const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
+  const [showAdvancedApi, setShowAdvancedApi] = useState(false);
+  const [editedBaseUrl, setEditedBaseUrl] = useState<string | null>(null);
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
 
-  const urlValue = editedUrl ?? icsUrl;
+  const baseUrlValue = editedBaseUrl ?? apiBaseUrl;
 
   const kpis = useMemo(() => {
     const upcoming = courses.filter((c) => c.end > nowMs);
-    const upcomingDs = upcoming.filter(
-      (c) => c.kind === "DS" || c.title.toUpperCase().includes("_DS")
-    );
+    const upcomingDs = upcoming.filter((c) => isCourseDS(c));
     return {
       totalHours: formatTotalDuration(courses),
       upcomingCount: upcoming.length,
@@ -234,7 +223,7 @@ export default function SettingsScreen() {
           </ThemedText>
           <ThemedText type="largeTitle">Réglages & Stats</ThemedText>
           <ThemedText type="caption" themeColor="textSecondary">
-            Apparence, accentuation, haptique, source ICS, rappels et matières
+            Apparence, accentuation, haptique, classe GEII, rappels et matières
           </ThemedText>
         </View>
 
@@ -390,88 +379,85 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* 2. Source du flux ICS (Règle 1 d'AGENTS.md) */}
+          {/* 2. Classe & Source GEII en direct */}
           <View style={[styles.card, cardSurfaceStyle]}>
-            <View style={styles.cardTitleRow}>
-              <View style={[styles.iconBadge, { backgroundColor: accent.softBg }]}>
-                <SymbolView
-                  name={{ ios: "link", android: "link", web: "link" }}
-                  size={15}
-                  tintColor={accent.primary}
-                />
-              </View>
-              <ThemedText type="overline">Flux ICS (Source de vérité)</ThemedText>
-            </View>
-
-            <View style={styles.chipsRow}>
-              {PRESET_URLS.map((preset) => {
-                const isSelected = icsUrl === preset.url;
-                return (
-                  <Pressable
-                    key={preset.label}
-                    onPress={() => {
-                      haptics.selection();
-                      setEditedUrl(null);
-                      updateUrl(preset.url);
+            <View style={styles.cardHeaderBetween}>
+              <View style={styles.cardTitleRow}>
+                <View style={[styles.iconBadge, { backgroundColor: accent.softBg }]}>
+                  <SymbolView
+                    name={{
+                      ios: "graduationcap.fill",
+                      android: "school",
+                      web: "school",
                     }}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: isSelected
-                          ? accent.softBg
-                          : theme.cardBgSubtle,
-                        borderColor: isSelected ? accent.primary : theme.cardBorder,
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      type="captionBold"
-                      style={{
-                        color: isSelected ? accent.text : theme.textSecondary,
-                      }}
-                    >
-                      {preset.label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
+                    size={15}
+                    tintColor={accent.primary}
+                  />
+                </View>
+                <ThemedText type="overline">Classe &amp; Source GEII</ThemedText>
+              </View>
+              <ThemedText type="caption" themeColor="textMuted">
+                {groups.length} classes
+              </ThemedText>
             </View>
 
-            <TextInput
-              value={urlValue}
-              onChangeText={setEditedUrl}
-              placeholder="https://..."
-              placeholderTextColor={theme.textMuted}
-              autoCapitalize="none"
-              autoCorrect={false}
+            <Pressable
+              onPress={() => {
+                haptics.soft();
+                setIsClassPickerOpen(true);
+              }}
               style={[
-                styles.input,
+                styles.activeClassBox,
                 {
-                  color: theme.text,
                   backgroundColor: theme.cardBgSubtle,
-                  borderColor: theme.cardBorder,
+                  borderColor: accent.border,
                 },
               ]}
-            />
+            >
+              <View style={styles.activeClassInfo}>
+                <ThemedText type="caption" themeColor="textSecondary">
+                  Classe sélectionnée
+                </ThemedText>
+                <ThemedText
+                  type="subtitle"
+                  style={{ color: accent.primary }}
+                  numberOfLines={1}
+                >
+                  {activeGroup.text}
+                </ThemedText>
+                <ThemedText
+                  type="caption"
+                  themeColor="textMuted"
+                  numberOfLines={1}
+                >
+                  {activeGroup.section}
+                </ThemedText>
+              </View>
+              <SymbolView
+                name={{
+                  ios: "chevron.up.chevron.down",
+                  android: "unfold_more",
+                  web: "unfold_more",
+                }}
+                size={16}
+                tintColor={accent.primary}
+              />
+            </Pressable>
 
             <GlassSurfaceContainer spacing={8} style={styles.actionRow}>
               <GlassButton
-                haptic="toggle"
+                haptic="soft"
                 tintColor={accent.solidBg}
                 borderColor={accent.primary}
-                onPress={() => {
-                  const target = urlValue;
-                  setEditedUrl(null);
-                  updateUrl(target);
-                }}
+                onPress={() => setIsClassPickerOpen(true)}
                 containerStyle={styles.primaryBtnContainer}
                 style={styles.primaryBtn}
               >
                 <SymbolView
                   name={{
-                    ios: "arrow.triangle.2.circlepath",
-                    android: "sync",
-                    web: "sync",
+                    ios: "person.2.fill",
+                    android: "group",
+                    web: "group",
                   }}
                   size={14}
                   tintColor={theme.textOnAccent}
@@ -480,7 +466,7 @@ export default function SettingsScreen() {
                   type="smallBold"
                   style={{ color: theme.textOnAccent }}
                 >
-                  {isSyncing ? "Synchro..." : "Appliquer & Synchroniser"}
+                  Changer de classe
                 </ThemedText>
               </GlassButton>
 
@@ -492,10 +478,90 @@ export default function SettingsScreen() {
                 style={styles.secondaryBtn}
               >
                 <ThemedText type="captionBold">
-                  Rafraîchir
+                  {isSyncing ? "Synchro..." : "Rafraîchir"}
                 </ThemedText>
               </GlassButton>
             </GlassSurfaceContainer>
+
+            <View
+              style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+            />
+
+            <Pressable
+              onPress={() => {
+                haptics.selection();
+                setShowAdvancedApi((v) => !v);
+              }}
+              style={styles.advancedToggleRow}
+            >
+              <ThemedText type="caption" themeColor="textSecondary">
+                Paramètre avancé · Serveur API GEII
+              </ThemedText>
+              <SymbolView
+                name={{
+                  ios: showAdvancedApi ? "chevron.up" : "chevron.down",
+                  android: showAdvancedApi ? "expand_less" : "expand_more",
+                  web: showAdvancedApi ? "expand_less" : "expand_more",
+                }}
+                size={12}
+                tintColor={theme.textMuted}
+              />
+            </Pressable>
+
+            {showAdvancedApi && (
+              <View style={styles.advancedApiBox}>
+                <ThemedText type="caption" themeColor="textMuted">
+                  Utile uniquement pour un relais CORS en aperçu navigateur.
+                </ThemedText>
+                <TextInput
+                  value={baseUrlValue}
+                  onChangeText={setEditedBaseUrl}
+                  placeholder={DEFAULT_API_BASE}
+                  placeholderTextColor={theme.textMuted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  style={[
+                    styles.input,
+                    {
+                      color: theme.text,
+                      backgroundColor: theme.cardBgSubtle,
+                      borderColor: theme.cardBorder,
+                    },
+                  ]}
+                />
+                <GlassSurfaceContainer spacing={8} style={styles.actionRow}>
+                  <GlassButton
+                    haptic="soft"
+                    tintColor={theme.backgroundSelected}
+                    borderColor={theme.border}
+                    onPress={() => {
+                      const target = baseUrlValue;
+                      setEditedBaseUrl(null);
+                      void updateApiBaseUrl(target);
+                    }}
+                    containerStyle={styles.primaryBtnContainer}
+                    style={styles.secondaryBtn}
+                  >
+                    <ThemedText type="captionBold">
+                      Appliquer l&apos;URL API
+                    </ThemedText>
+                  </GlassButton>
+
+                  <GlassButton
+                    haptic="selection"
+                    tintColor={theme.backgroundSelected}
+                    borderColor={theme.border}
+                    onPress={() => {
+                      setEditedBaseUrl(null);
+                      void updateApiBaseUrl(DEFAULT_API_BASE);
+                    }}
+                    style={styles.secondaryBtn}
+                  >
+                    <ThemedText type="captionBold">Par défaut</ThemedText>
+                  </GlassButton>
+                </GlassSurfaceContainer>
+              </View>
+            )}
           </View>
 
           {/* 3. Notifications & Rappels */}
@@ -767,9 +833,9 @@ export default function SettingsScreen() {
 
             {!widgetsReady && (
               <ThemedText type="caption" themeColor="textSecondary">
-                Les widgets natifs fonctionnent hors ligne depuis le cache ICS
-                et nécessitent un development build via EAS Build (non inclus
-                dans Expo Go).
+                Les widgets natifs fonctionnent hors ligne depuis le cache local
+                GEII et nécessitent un development build via EAS Build (non
+                inclus dans Expo Go).
               </ThemedText>
             )}
           </View>
@@ -955,6 +1021,16 @@ export default function SettingsScreen() {
 
       <AmbientBackground />
       <StatusBarProgressiveBlur />
+
+      <ClassPickerModal
+        visible={isClassPickerOpen}
+        onClose={() => setIsClassPickerOpen(false)}
+        groups={groups}
+        activeGroupId={activeGroup.id}
+        onSelectGroup={(groupId) => {
+          void selectGroup(groupId);
+        }}
+      />
     </View>
   );
 }
@@ -1030,6 +1106,30 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
   },
   motionSection: {
+    gap: Spacing.two,
+  },
+  activeClassBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 4,
+    borderRadius: Radius.lg,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  activeClassInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  advancedToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 2,
+  },
+  advancedApiBox: {
     gap: Spacing.two,
   },
   chipsRow: {

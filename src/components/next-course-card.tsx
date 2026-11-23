@@ -23,7 +23,7 @@ import {
   formatTimeRange,
   getNextOrCurrentCourse,
 } from "@/lib/dates";
-import { Course } from "@/lib/ics";
+import { Course, isCourseDS } from "@/lib/geii-api";
 import {
   getSubjectDictionarySnapshot,
   resolveSubjectReadableName,
@@ -88,8 +88,7 @@ export function NextCourseCard({ courses, onSelectCourse }: NextCourseCardProps)
 
   const tokens = getCourseColorTokens(course.subject, course.kind, theme);
   const statusScale = isCurrent ? theme.menthe : theme.accentScale;
-  const isDS =
-    course.kind === "DS" || course.title.toUpperCase().includes("_DS");
+  const isDS = isCourseDS(course);
 
   const progress = isCurrent
     ? Math.min(
@@ -193,6 +192,27 @@ export function NextCourseCard({ courses, onSelectCourse }: NextCourseCardProps)
               >
                 {course.title}
               </ThemedText>
+            )}
+            {course.teacher && (
+              <View style={styles.teacherMetaRow}>
+                <SymbolView
+                  name={{
+                    ios: "person.fill",
+                    android: "person",
+                    web: "person",
+                  }}
+                  size={11}
+                  tintColor={theme.textSecondary}
+                />
+                <ThemedText
+                  type="caption"
+                  themeColor="textSecondary"
+                  style={styles.teacherMetaText}
+                  numberOfLines={1}
+                >
+                  {course.teacher}
+                </ThemedText>
+              </View>
             )}
           </View>
 
@@ -390,6 +410,15 @@ const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     gap: 2,
+  },
+  teacherMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 1,
+  },
+  teacherMetaText: {
+    flexShrink: 1,
   },
   badgesGroup: {
     flexDirection: "row",

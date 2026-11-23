@@ -12,6 +12,7 @@ export type ActiveFilterPillsProps = {
   onClearPromo: () => void;
   onClearKind: () => void;
   onClearSubject: () => void;
+  onClearTeacher: () => void;
   onClearTag: () => void;
   onClearRoom: () => void;
   onClearFloor: () => void;
@@ -24,6 +25,7 @@ export function ActiveFilterPills({
   onClearPromo,
   onClearKind,
   onClearSubject,
+  onClearTeacher,
   onClearTag,
   onClearRoom,
   onClearFloor,
@@ -39,6 +41,7 @@ export function ActiveFilterPills({
     Boolean(criteria.selectedPromo) ||
     Boolean(criteria.selectedKind) ||
     Boolean(criteria.selectedSubject) ||
+    Boolean(criteria.selectedTeacher) ||
     Boolean(criteria.selectedTag) ||
     Boolean(criteria.selectedRoom) ||
     Boolean(criteria.selectedFloor) ||
@@ -90,6 +93,9 @@ export function ActiveFilterPills({
 
       {criteria.selectedSubject &&
         renderPill(`Matière: ${criteria.selectedSubject}`, onClearSubject)}
+
+      {criteria.selectedTeacher &&
+        renderPill(`Prof: ${criteria.selectedTeacher}`, onClearTeacher)}
 
       {criteria.selectedTag &&
         renderPill(`Tag: ${criteria.selectedTag}`, onClearTag)}

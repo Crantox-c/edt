@@ -1,5 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { KV } from "./sync";
+
+export interface KV {
+  get(k: string): Promise<string | null>;
+  set(k: string, v: string): Promise<void>;
+}
 
 export const asyncStorageKV: KV = {
   get: async (k: string): Promise<string | null> => {

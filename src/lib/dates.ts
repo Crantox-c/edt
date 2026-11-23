@@ -1,4 +1,4 @@
-import { Course } from "./ics";
+import type { Course } from "./geii-api";
 
 export const TZ_PARIS = "Europe/Paris";
 

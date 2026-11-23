@@ -32,7 +32,7 @@ import {
   getParisDateString,
 } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
-import { Course } from "@/lib/ics";
+import { Course, isCourseDS } from "@/lib/geii-api";
 import {
   getCourseNotesSnapshot,
   saveCourseNote,
@@ -90,8 +90,7 @@ function CourseDetailContent({
 
   const readableName = resolveSubjectReadableName(course.subject, subjectDict);
   const tokens = getCourseColorTokens(course.subject, course.kind, theme);
-  const isDS =
-    course.kind === "DS" || course.title.toUpperCase().includes("_DS");
+  const isDS = isCourseDS(course);
 
   const isCurrent = nowMs >= course.start && nowMs < course.end;
   const isPast = nowMs >= course.end;
@@ -237,7 +236,7 @@ function CourseDetailContent({
               ]}
             >
               <ThemedText type="code" themeColor="textSecondary">
-                ICS : {course.title}
+                Code : {course.title}
               </ThemedText>
             </View>
           </View>
@@ -314,6 +313,74 @@ function CourseDetailContent({
               {floorLabel ? ` • ${floorLabel}` : ""}
             </ThemedText>
           </View>
+
+          {course.teacher && (
+            <>
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: theme.borderSubtle },
+                ]}
+              />
+              <View style={styles.infoRow}>
+                <View style={styles.infoLabelRow}>
+                  <SymbolView
+                    name={{
+                      ios: "person.fill",
+                      android: "person",
+                      web: "person",
+                    }}
+                    size={15}
+                    tintColor={tokens.accentColor}
+                  />
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Enseignant
+                  </ThemedText>
+                </View>
+                <ThemedText
+                  type="smallBold"
+                  style={styles.infoValueRight}
+                  numberOfLines={2}
+                >
+                  {course.teacher}
+                </ThemedText>
+              </View>
+            </>
+          )}
+
+          {course.extraLines.length > 0 && (
+            <>
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: theme.borderSubtle },
+                ]}
+              />
+              <View style={styles.infoRow}>
+                <View style={styles.infoLabelRow}>
+                  <SymbolView
+                    name={{
+                      ios: "info.circle.fill",
+                      android: "info",
+                      web: "info",
+                    }}
+                    size={15}
+                    tintColor={tokens.accentColor}
+                  />
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Informations
+                  </ThemedText>
+                </View>
+                <ThemedText
+                  type="smallBold"
+                  style={styles.infoValueRight}
+                  numberOfLines={2}
+                >
+                  {course.extraLines.join(" • ")}
+                </ThemedText>
+              </View>
+            </>
+          )}
 
           {course.tags.length > 0 && (
             <>
@@ -604,6 +671,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  infoValueRight: {
+    flexShrink: 1,
+    textAlign: "right",
   },
   divider: {
     height: StyleSheet.hairlineWidth,

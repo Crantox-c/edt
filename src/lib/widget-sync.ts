@@ -2,7 +2,7 @@ import { requireOptionalNativeModule } from "expo";
 import { Platform } from "react-native";
 
 import type { AccentPreset } from "@/constants/theme";
-import type { Course } from "@/lib/ics";
+import type { Course } from "@/lib/geii-api";
 import { getSubjectDictionarySnapshot } from "@/lib/subject-names";
 import { buildWidgetTimelines } from "@/lib/widget-timeline";
 
@@ -81,7 +81,7 @@ async function loadWidgets(): Promise<LoadedWidgets> {
 }
 
 /**
- * Calcule la timeline hors-ligne depuis le cache ICS et pousse les entrées
+ * Calcule la timeline hors-ligne depuis le cache local GEII et pousse les entrées
  * vers les 3 widgets WidgetKit iOS. Ne fait rien hors development build iOS.
  */
 export async function syncWidgetsFromSchedule(

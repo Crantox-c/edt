@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -38,7 +39,7 @@ import {
   getTodayParisDateString,
 } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
-import { Course } from "@/lib/ics";
+import { Course } from "@/lib/geii-api";
 import { CourseCard } from "./course-card";
 import { NowIndicator } from "./now-indicator";
 
@@ -62,6 +63,7 @@ export type DayViewProps = {
   onSelectDate: (dateStr: string) => void;
   onSelectCourse: (course: Course) => void;
   modifiedKeys?: Set<string>;
+  isLoadingWeek?: boolean;
 };
 
 export function DayView({
@@ -70,6 +72,7 @@ export function DayView({
   onSelectDate,
   onSelectCourse,
   modifiedKeys,
+  isLoadingWeek = false,
 }: DayViewProps) {
   const theme = useTheme();
   const accent = theme.accentTiers;
@@ -452,6 +455,22 @@ export function DayView({
 
       {/* Liste des cours (cartes mates) ou état vide */}
       {dayCourses.length === 0 ? (
+        isLoadingWeek ? (
+          <View
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: theme.cardBgSubtle,
+                borderColor: theme.cardBorder,
+              },
+            ]}
+          >
+            <ActivityIndicator size="small" color={theme.accent} />
+            <ThemedText type="small" themeColor="textSecondary">
+              Chargement de la semaine...
+            </ThemedText>
+          </View>
+        ) : (
         <View
           style={[
             styles.emptyCard,
@@ -509,6 +528,7 @@ export function DayView({
 
           {isToday && <NowIndicator />}
         </View>
+        )
       ) : (
         <View style={styles.courseList}>
           {dayCourses.map((course, idx) => {

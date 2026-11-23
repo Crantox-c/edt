@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
-import { Course } from "@/lib/ics";
+import type { Course } from "@/lib/geii-api";
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   loadNotificationSettings,

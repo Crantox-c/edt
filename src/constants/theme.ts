@@ -1,6 +1,6 @@
 import "@/global.css";
 import { Platform } from "react-native";
-import { Course } from "@/lib/ics";
+import type { Course } from "@/lib/geii-api";
 
 export type ThemeMode = "nuit" | "clair" | "oled" | "auto";
 export type BaseThemeMode = "nuit" | "clair" | "oled";

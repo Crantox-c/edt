@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import {
   GlassSurface,
   GlassSurfaceContainer,
 } from "@/components/ui/glass-surface";
+import { PressableScale } from "@/components/ui/pressable-scale";
 import {
   MaxContentWidth,
   Radius,
@@ -26,6 +28,7 @@ import {
   addDays,
   formatDayHeaderCompact,
   formatDayShort,
+  formatTime,
   formatTimeRange,
   formatTotalDuration,
   formatWeekHeader,
@@ -36,7 +39,11 @@ import {
   getWeekDays,
 } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
-import { Course } from "@/lib/ics";
+import { Course, isCourseDS } from "@/lib/geii-api";
+import {
+  getCourseNotesSnapshot,
+  subscribeCourseNotes,
+} from "@/lib/notes";
 import {
   getSubjectDictionarySnapshot,
   resolveSubjectReadableName,
@@ -46,10 +53,10 @@ import { CourseCard } from "./course-card";
 
 type WeekDisplayMode = "grid" | "agenda";
 
-const HOUR_HEIGHT = 60; // 1 px par minute pour une grille lisible et proportionnelle
-const TIME_RAIL_WIDTH = 40;
-const DAY_HEADER_HEIGHT = 46;
-const MIN_COL_WIDTH = 118;
+const HOUR_HEIGHT = 68;
+const TIME_RAIL_WIDTH = 44;
+const DAY_HEADER_HEIGHT = 60;
+const MIN_COL_WIDTH = 148;
 
 type PositionedCourse = {
   course: Course;
@@ -129,6 +136,7 @@ export type WeekViewProps = {
   onSelectCourse: (course: Course) => void;
   onGoToDay?: (dateStr: string) => void;
   modifiedKeys?: Set<string>;
+  isLoadingWeek?: boolean;
 };
 
 export function WeekView({
@@ -138,6 +146,7 @@ export function WeekView({
   onSelectCourse,
   onGoToDay,
   modifiedKeys,
+  isLoadingWeek = false,
 }: WeekViewProps) {
   const theme = useTheme();
   const accent = theme.accentTiers;
@@ -153,6 +162,11 @@ export function WeekView({
     subscribeSubjectDictionary,
     getSubjectDictionarySnapshot,
     getSubjectDictionarySnapshot
+  );
+  const notesMap = useSyncExternalStore(
+    subscribeCourseNotes,
+    getCourseNotesSnapshot,
+    getCourseNotesSnapshot
   );
 
   const isCurrentWeek = currentMonday === thisWeekMonday;
@@ -415,13 +429,30 @@ export function WeekView({
         </GlassButton>
       )}
 
+      {isLoadingWeek && weekCourses.length === 0 && (
+        <View
+          style={[
+            styles.weekLoadingRow,
+            {
+              backgroundColor: theme.cardBgSubtle,
+              borderColor: theme.cardBorder,
+            },
+          ]}
+        >
+          <ActivityIndicator size="small" color={theme.accent} />
+          <ThemedText type="caption" themeColor="textSecondary">
+            Chargement de la semaine...
+          </ThemedText>
+        </View>
+      )}
+
       {displayMode === "grid" ? (
-        /* Grille horaire spacieuse défilable horizontalement sur iPhone */
+        /* Grille horaire aérée inspirée de CourseCard / vue Liste */
         <View
           style={[
             styles.gridOuterCard,
             {
-              backgroundColor: theme.cardBg,
+              backgroundColor: theme.cardBgSubtle,
               borderColor: theme.cardBorder,
             },
           ]}
@@ -442,6 +473,7 @@ export function WeekView({
                   styles.railCornerSpacer,
                   {
                     height: DAY_HEADER_HEIGHT,
+                    backgroundColor: theme.cardBg,
                     borderBottomColor: theme.borderSubtle,
                   },
                 ]}
@@ -452,7 +484,7 @@ export function WeekView({
                     key={`h-${hour}`}
                     style={[
                       styles.hourLabelBox,
-                      { top: idx * HOUR_HEIGHT - 7 },
+                      { top: idx === 0 ? 4 : idx * HOUR_HEIGHT - 7 },
                     ]}
                   >
                     <ThemedText
@@ -464,6 +496,33 @@ export function WeekView({
                     </ThemedText>
                   </View>
                 ))}
+
+                {isCurrentWeek && showNowLineInGrid && (
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.railNowBadge,
+                      {
+                        top: Math.max(
+                          2,
+                          Math.min(gridHeight - 18, nowLineTop - 9)
+                        ),
+                        backgroundColor: theme.corail[100],
+                        borderColor: theme.corail[300],
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      type="tabular"
+                      style={[
+                        styles.railNowText,
+                        { color: theme.corail[700] },
+                      ]}
+                    >
+                      {formatTime(nowMs)}
+                    </ThemedText>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -482,6 +541,7 @@ export function WeekView({
                     styles.gridHeadersRow,
                     {
                       height: DAY_HEADER_HEIGHT,
+                      backgroundColor: theme.cardBg,
                       borderBottomColor: theme.borderSubtle,
                     },
                   ]}
@@ -489,6 +549,10 @@ export function WeekView({
                   {visibleGridDays.map((dStr) => {
                     const { weekday, dayNum } = formatDayShort(dStr);
                     const isToday = dStr === todayStr;
+                    const dayList = coursesByDate.get(dStr) ?? [];
+                    const dayDur =
+                      dayList.length > 0 ? formatTotalDuration(dayList) : "Libre";
+
                     return (
                       <Pressable
                         key={`head-${dStr}`}
@@ -502,39 +566,58 @@ export function WeekView({
                           isToday && { backgroundColor: accent.subtleBg },
                         ]}
                       >
-                        <ThemedText
-                          type="caption"
-                          style={[
-                            styles.gridHeaderWeekday,
-                            {
-                              color: isToday
-                                ? accent.primary
-                                : theme.textSecondary,
-                            },
-                          ]}
-                        >
-                          {weekday}
-                        </ThemedText>
-                        <View
-                          style={[
-                            styles.dayNumCircle,
-                            isToday && { backgroundColor: accent.solidBg },
-                          ]}
-                        >
+                        <View style={styles.gridHeaderDayRow}>
                           <ThemedText
-                            type="tabular"
+                            type="captionBold"
                             style={[
-                              styles.gridHeaderNum,
+                              styles.gridHeaderWeekday,
                               {
                                 color: isToday
-                                  ? theme.textOnAccent
-                                  : theme.text,
+                                  ? accent.primary
+                                  : theme.textSecondary,
                               },
                             ]}
                           >
-                            {dayNum}
+                            {weekday}
                           </ThemedText>
+                          <View
+                            style={[
+                              styles.dayNumCircle,
+                              isToday && { backgroundColor: accent.solidBg },
+                            ]}
+                          >
+                            <ThemedText
+                              type="tabular"
+                              style={[
+                                styles.gridHeaderNum,
+                                {
+                                  color: isToday
+                                    ? theme.textOnAccent
+                                    : theme.text,
+                                },
+                              ]}
+                            >
+                              {dayNum}
+                            </ThemedText>
+                          </View>
                         </View>
+
+                        <ThemedText
+                          type="caption"
+                          style={[
+                            styles.gridHeaderDuration,
+                            {
+                              color: isToday
+                                ? accent.text
+                                : dayList.length > 0
+                                  ? theme.textSecondary
+                                  : theme.textMuted,
+                            },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {dayDur}
+                        </ThemedText>
                       </Pressable>
                     );
                   })}
@@ -551,26 +634,30 @@ export function WeekView({
                         {
                           top: lunchTop,
                           height: lunchHeight,
-                          backgroundColor: theme.cardBgSubtle,
+                          backgroundColor: theme.background,
+                          borderTopColor: theme.borderSubtle,
+                          borderBottomColor: theme.borderSubtle,
                         },
                       ]}
                     />
                   )}
 
-                  {/* Lignes horaires horizontales */}
-                  {hoursList.map((hour, idx) => (
-                    <View
-                      key={`line-${hour}`}
-                      pointerEvents="none"
-                      style={[
-                        styles.hourGridLine,
-                        {
-                          top: idx * HOUR_HEIGHT,
-                          backgroundColor: theme.borderSubtle,
-                        },
-                      ]}
-                    />
-                  ))}
+                  {/* Lignes horaires horizontales (hors idx === 0 pour éviter le doublon avec l'en-tête) */}
+                  {hoursList.map((hour, idx) =>
+                    idx === 0 ? null : (
+                      <View
+                        key={`line-${hour}`}
+                        pointerEvents="none"
+                        style={[
+                          styles.hourGridLine,
+                          {
+                            top: idx * HOUR_HEIGHT,
+                            backgroundColor: theme.borderSubtle,
+                          },
+                        ]}
+                      />
+                    )
+                  )}
 
                   {/* Colonnes par jour */}
                   {visibleGridDays.map((dStr, colIdx) => {
@@ -596,10 +683,10 @@ export function WeekView({
                         {positioned.map((p) => {
                           const top =
                             ((p.startMin - startHour * 60) / 60) * HOUR_HEIGHT +
-                            1.5;
+                            2;
                           const height = Math.max(
-                            28,
-                            ((p.endMin - p.startMin) / 60) * HOUR_HEIGHT - 3
+                            34,
+                            ((p.endMin - p.startMin) / 60) * HOUR_HEIGHT - 4
                           );
                           const leftPct = (p.col / p.totalCols) * 100;
                           const widthPct = (1 / p.totalCols) * 100;
@@ -608,26 +695,50 @@ export function WeekView({
                             p.course.kind,
                             theme
                           );
-                          const isDS =
-                            p.course.kind === "DS" ||
-                            p.course.title.toUpperCase().includes("_DS");
+                          const isDS = isCourseDS(p.course);
+                          const isActive =
+                            isToday &&
+                            nowMs >= p.course.start &&
+                            nowMs < p.course.end;
+                          const isPast =
+                            dStr < todayStr ||
+                            (isToday && nowMs >= p.course.end);
+                          const isModified = Boolean(
+                            modifiedKeys?.has(p.course.key)
+                          );
+                          const hasNote = Boolean(notesMap[p.course.key]);
+                          const activeProgress = isActive
+                            ? Math.min(
+                                1,
+                                Math.max(
+                                  0.03,
+                                  (nowMs - p.course.start) /
+                                    Math.max(1, p.course.end - p.course.start)
+                                )
+                              )
+                            : 0;
+
                           const readable = resolveSubjectReadableName(
                             p.course.subject,
                             subjectDict
                           );
-                          const displayLabel = readable
+                          const displayTitle = readable
                             ? p.totalCols > 1
                               ? p.course.subject
                               : readable
-                            : p.course.subject;
+                            : p.course.title;
+                          const timeLabel =
+                            p.totalCols > 1
+                              ? formatTime(p.course.start)
+                              : formatTimeRange(p.course.start, p.course.end);
+                          const isCompactCard = height < 48;
 
                           return (
-                            <Pressable
+                            <PressableScale
                               key={p.course.key}
-                              onPress={() => {
-                                haptics.tap();
-                                onSelectCourse(p.course);
-                              }}
+                              haptic="tap"
+                              targetScale={0.97}
+                              onPress={() => onSelectCourse(p.course)}
                               style={[
                                 styles.gridEventOuter,
                                 {
@@ -643,97 +754,271 @@ export function WeekView({
                                   styles.gridEventCard,
                                   {
                                     backgroundColor: theme.cardBg,
-                                    borderColor: tokens.borderColor,
-                                    borderLeftColor: tokens.accentColor,
+                                    borderColor: isActive
+                                      ? theme.menthe[500]
+                                      : isDS
+                                        ? theme.corail[300]
+                                        : theme.cardBorder,
+                                    borderWidth: isActive
+                                      ? 1.5
+                                      : StyleSheet.hairlineWidth,
+                                  },
+                                  !theme.isDark && {
+                                    shadowColor: theme.shadow,
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.05,
+                                    shadowRadius: 6,
+                                    elevation: 2,
                                   },
                                 ]}
                               >
                                 <View
-                                  pointerEvents="none"
                                   style={[
-                                    StyleSheet.absoluteFill,
-                                    { backgroundColor: tokens.cardBg },
+                                    styles.gridCardBody,
+                                    isCompactCard && styles.gridCardBodyCompact,
                                   ]}
-                                />
-
-                                <View style={styles.gridEventHeader}>
-                                  <ThemedText
-                                    type="captionBold"
-                                    style={[
-                                      styles.gridEventTitle,
-                                      { color: tokens.textColor },
-                                    ]}
-                                    numberOfLines={height >= 64 ? 2 : 1}
-                                  >
-                                    {displayLabel}
-                                  </ThemedText>
-                                  {isDS && (
-                                    <View
-                                      style={[
-                                        styles.gridDsBadge,
-                                        { backgroundColor: theme.corail[100] },
-                                      ]}
-                                    >
-                                      <ThemedText
-                                        type="captionBold"
-                                        style={[
-                                          styles.gridDsText,
-                                          { color: theme.corail[700] },
-                                        ]}
-                                      >
-                                        DS
-                                      </ThemedText>
-                                    </View>
-                                  )}
-                                </View>
-
-                                {height >= 42 && (
-                                  <ThemedText
-                                    type="captionBold"
-                                    themeColor={
-                                      p.course.room ? "textSecondary" : "textMuted"
-                                    }
-                                    style={styles.gridEventRoom}
-                                    numberOfLines={1}
-                                  >
-                                    {p.course.room ?? "Sans salle"}
-                                  </ThemedText>
-                                )}
-
-                                {height >= 62 && (
-                                  <ThemedText
-                                    type="tabular"
-                                    themeColor="textMuted"
-                                    style={styles.gridEventTime}
-                                    numberOfLines={1}
-                                  >
-                                    {formatTimeRange(
-                                      p.course.start,
-                                      p.course.end
-                                    )}
-                                  </ThemedText>
-                                )}
-
-                                {height >= 86 && p.course.kind && !isDS && (
+                                >
+                                  {/* Barre verticale colorée flottante identique à CourseCard */}
                                   <View
                                     style={[
-                                      styles.gridKindPill,
-                                      { backgroundColor: tokens.badgeBg },
+                                      styles.gridAccentBar,
+                                      {
+                                        backgroundColor: isPast
+                                          ? theme.textMuted
+                                          : isActive
+                                            ? theme.menthe[500]
+                                            : tokens.accentColor,
+                                      },
+                                    ]}
+                                  />
+
+                                  <View style={styles.gridCardContent}>
+                                    {/* Ligne 1 : horaire tabulaire + badges compacts */}
+                                    <View style={styles.gridTopMetaRow}>
+                                      <ThemedText
+                                        type="tabular"
+                                        style={[
+                                          styles.gridEventTime,
+                                          {
+                                            color: isPast
+                                              ? theme.textMuted
+                                              : tokens.textColor,
+                                          },
+                                        ]}
+                                        numberOfLines={1}
+                                      >
+                                        {timeLabel}
+                                      </ThemedText>
+
+                                      <View style={styles.gridBadgesRow}>
+                                        {isActive && (
+                                          <View
+                                            style={[
+                                              styles.gridLiveBadge,
+                                              {
+                                                backgroundColor:
+                                                  theme.menthe[100],
+                                              },
+                                            ]}
+                                          >
+                                            <View
+                                              style={[
+                                                styles.gridLiveDot,
+                                                {
+                                                  backgroundColor:
+                                                    theme.menthe[500],
+                                                },
+                                              ]}
+                                            />
+                                          </View>
+                                        )}
+
+                                        {isModified && (
+                                          <View
+                                            style={[
+                                              styles.gridMiniPill,
+                                              {
+                                                backgroundColor:
+                                                  theme.ambre[100],
+                                              },
+                                            ]}
+                                          >
+                                            <ThemedText
+                                              type="captionBold"
+                                              style={[
+                                                styles.gridMiniPillText,
+                                                { color: theme.ambre[700] },
+                                              ]}
+                                            >
+                                              MOD
+                                            </ThemedText>
+                                          </View>
+                                        )}
+
+                                        {hasNote && (
+                                          <View
+                                            style={[
+                                              styles.gridNoteBadge,
+                                              {
+                                                backgroundColor:
+                                                  theme.violet[100],
+                                              },
+                                            ]}
+                                          >
+                                            <SymbolView
+                                              name={{
+                                                ios: "note.text",
+                                                android: "sticky_note_2",
+                                                web: "sticky_note_2",
+                                              }}
+                                              size={9}
+                                              tintColor={theme.violet[700]}
+                                            />
+                                          </View>
+                                        )}
+
+                                        {(p.course.kind || isDS) &&
+                                          p.totalCols === 1 && (
+                                            <View
+                                              style={[
+                                                styles.gridMiniPill,
+                                                {
+                                                  backgroundColor: tokens.badgeBg,
+                                                },
+                                              ]}
+                                            >
+                                              <ThemedText
+                                                type="captionBold"
+                                                style={[
+                                                  styles.gridMiniPillText,
+                                                  { color: tokens.textColor },
+                                                ]}
+                                              >
+                                                {isDS ? "DS" : p.course.kind}
+                                              </ThemedText>
+                                            </View>
+                                          )}
+                                      </View>
+                                    </View>
+
+                                    {/* Ligne 2 : Titre matière lisible */}
+                                    <ThemedText
+                                      type="smallBold"
+                                      themeColor={
+                                        isPast ? "textSecondary" : "text"
+                                      }
+                                      style={styles.gridEventTitle}
+                                      numberOfLines={height >= 96 ? 2 : 1}
+                                    >
+                                      {displayTitle}
+                                    </ThemedText>
+
+                                    {/* Code brut si place suffisante */}
+                                    {readable &&
+                                      height >= 120 &&
+                                      p.totalCols === 1 && (
+                                        <ThemedText
+                                          type="caption"
+                                          themeColor="textMuted"
+                                          style={styles.gridRawCode}
+                                          numberOfLines={1}
+                                        >
+                                          {p.course.title}
+                                        </ThemedText>
+                                      )}
+
+                                    {/* Salle avec icône SF Symbol */}
+                                    {height >= 54 && (
+                                      <View style={styles.gridMetaIconRow}>
+                                        <SymbolView
+                                          name={{
+                                            ios: "mappin.and.ellipse",
+                                            android: "place",
+                                            web: "place",
+                                          }}
+                                          size={10.5}
+                                          tintColor={
+                                            !isPast && p.course.room
+                                              ? theme.textSecondary
+                                              : theme.textMuted
+                                          }
+                                        />
+                                        <ThemedText
+                                          type="caption"
+                                          themeColor={
+                                            !isPast && p.course.room
+                                              ? "textSecondary"
+                                              : "textMuted"
+                                          }
+                                          style={[
+                                            styles.gridEventSubLine,
+                                            !p.course.room &&
+                                              styles.gridEmptyRoomItalic,
+                                          ]}
+                                          numberOfLines={1}
+                                        >
+                                          {p.course.room ?? "Salle N.C."}
+                                        </ThemedText>
+                                      </View>
+                                    )}
+
+                                    {/* Enseignant avec icône SF Symbol */}
+                                    {height >= 82 &&
+                                      p.totalCols === 1 &&
+                                      p.course.teacher && (
+                                        <View style={styles.gridMetaIconRow}>
+                                          <SymbolView
+                                            name={{
+                                              ios: "person.fill",
+                                              android: "person",
+                                              web: "person",
+                                            }}
+                                            size={10}
+                                            tintColor={
+                                              isPast
+                                                ? theme.textMuted
+                                                : theme.textSecondary
+                                            }
+                                          />
+                                          <ThemedText
+                                            type="caption"
+                                            themeColor={
+                                              isPast
+                                                ? "textMuted"
+                                                : "textSecondary"
+                                            }
+                                            style={styles.gridEventSubLine}
+                                            numberOfLines={1}
+                                          >
+                                            {p.course.teacher}
+                                          </ThemedText>
+                                        </View>
+                                      )}
+                                  </View>
+                                </View>
+
+                                {isActive && (
+                                  <View
+                                    style={[
+                                      styles.gridProgressTrack,
+                                      { backgroundColor: theme.surfaceMuted },
                                     ]}
                                   >
-                                    <ThemedText
-                                      type="captionBold"
+                                    <View
                                       style={[
-                                        styles.gridKindText,
-                                        { color: tokens.textColor },
+                                        styles.gridProgressFill,
+                                        {
+                                          width: `${Math.round(
+                                            activeProgress * 100
+                                          )}%`,
+                                          backgroundColor: theme.menthe[500],
+                                        },
                                       ]}
-                                    >
-                                      {p.course.kind}
-                                    </ThemedText>
+                                    />
                                   </View>
                                 )}
                               </View>
-                            </Pressable>
+                            </PressableScale>
                           );
                         })}
 
@@ -916,6 +1201,18 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
     borderCurve: "continuous",
   },
+  weekLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+    alignSelf: "center",
+  },
   gridOuterCard: {
     borderRadius: Radius.xxl,
     borderCurve: "continuous",
@@ -941,6 +1238,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
   },
+  railNowBadge: {
+    position: "absolute",
+    left: 3,
+    right: 3,
+    height: 18,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 12,
+  },
+  railNowText: {
+    fontSize: 9,
+    lineHeight: 11,
+  },
   horizontalScroll: {
     flex: 1,
   },
@@ -951,11 +1264,17 @@ const styles = StyleSheet.create({
   gridColHeader: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
+    gap: 3,
+    paddingHorizontal: 4,
+  },
+  gridHeaderDayRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
   gridHeaderWeekday: {
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 10.5,
+    lineHeight: 13,
     letterSpacing: 0.4,
   },
   dayNumCircle: {
@@ -971,6 +1290,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 15,
   },
+  gridHeaderDuration: {
+    fontSize: 10,
+    lineHeight: 13,
+  },
   columnsCanvas: {
     flexDirection: "row",
     position: "relative",
@@ -979,6 +1302,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   hourGridLine: {
     position: "absolute",
@@ -992,59 +1317,111 @@ const styles = StyleSheet.create({
   },
   gridEventOuter: {
     position: "absolute",
-    paddingHorizontal: 2,
+    paddingHorizontal: 3,
   },
   gridEventCard: {
     flex: 1,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderCurve: "continuous",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: 3.5,
-    paddingHorizontal: 7,
-    paddingVertical: 5,
-    gap: 2,
     overflow: "hidden",
   },
-  gridEventHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 3,
-  },
-  gridEventTitle: {
-    fontSize: 11.5,
-    lineHeight: 14,
+  gridCardBody: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "stretch",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 7,
   },
-  gridDsBadge: {
+  gridCardBodyCompact: {
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    gap: 5,
+  },
+  gridAccentBar: {
+    width: 3.5,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    marginVertical: 1,
+  },
+  gridCardContent: {
+    flex: 1,
+    gap: 2,
+    justifyContent: "flex-start",
+  },
+  gridTopMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+  },
+  gridEventTime: {
+    fontSize: 10.5,
+    lineHeight: 13,
+    flexShrink: 1,
+  },
+  gridBadgesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    flexShrink: 0,
+  },
+  gridLiveBadge: {
+    width: 13,
+    height: 13,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  gridLiveDot: {
+    width: 5,
+    height: 5,
+    borderRadius: Radius.pill,
+  },
+  gridMiniPill: {
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: Radius.pill,
     borderCurve: "continuous",
   },
-  gridDsText: {
+  gridMiniPillText: {
     fontSize: 8.5,
-    lineHeight: 10,
+    lineHeight: 11,
   },
-  gridEventRoom: {
-    fontSize: 10.5,
+  gridNoteBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: Radius.sm - 2,
+    borderCurve: "continuous",
+  },
+  gridEventTitle: {
+    fontSize: 12.5,
+    lineHeight: 15,
+  },
+  gridRawCode: {
+    fontSize: 10,
     lineHeight: 13,
   },
-  gridEventTime: {
-    fontSize: 9.5,
-    lineHeight: 12,
+  gridMetaIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
-  gridKindPill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: Radius.pill,
-    borderCurve: "continuous",
-    marginTop: 1,
+  gridEventSubLine: {
+    fontSize: 10.5,
+    lineHeight: 13,
+    flexShrink: 1,
   },
-  gridKindText: {
-    fontSize: 9,
-    lineHeight: 11,
+  gridEmptyRoomItalic: {
+    fontStyle: "italic",
+  },
+  gridProgressTrack: {
+    height: 2.5,
+    width: "100%",
+    overflow: "hidden",
+  },
+  gridProgressFill: {
+    height: "100%",
   },
   gridNowLine: {
     position: "absolute",

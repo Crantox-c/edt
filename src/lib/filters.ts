@@ -1,10 +1,11 @@
-import { Course } from "./ics";
+import type { Course } from "./geii-api";
 
 export type FilterCriteria = {
   searchQuery: string;
   selectedPromo: string | null;
   selectedKind: string | null;
   selectedSubject: string | null;
+  selectedTeacher: string | null;
   selectedTag: string | null;
   selectedRoom: string | null;
   selectedFloor: string | null;
@@ -16,6 +17,7 @@ export const DEFAULT_FILTERS: FilterCriteria = {
   selectedPromo: null,
   selectedKind: null,
   selectedSubject: null,
+  selectedTeacher: null,
   selectedTag: null,
   selectedRoom: null,
   selectedFloor: null,
@@ -26,19 +28,21 @@ export type AvailableFilters = {
   promos: string[];
   kinds: string[];
   subjects: string[];
+  teachers: string[];
   tags: string[];
   rooms: string[];
   floors: string[];
 };
 
 /**
- * Extrait dynamiquement toutes les valeurs de filtres présentes dans le flux.
+ * Extrait dynamiquement toutes les valeurs de filtres présentes dans les séances.
  * Aucune valeur n'est codée en dur.
  */
 export function extractAvailableFilters(courses: Course[]): AvailableFilters {
   const promos = new Set<string>();
   const kinds = new Set<string>();
   const subjects = new Set<string>();
+  const teachers = new Set<string>();
   const tags = new Set<string>();
   const rooms = new Set<string>();
   const floors = new Set<string>();
@@ -47,6 +51,7 @@ export function extractAvailableFilters(courses: Course[]): AvailableFilters {
     if (c.promo) promos.add(c.promo);
     if (c.kind) kinds.add(c.kind);
     if (c.subject) subjects.add(c.subject);
+    if (c.teacher) teachers.add(c.teacher);
     for (const t of c.tags) {
       if (t) tags.add(t);
     }
@@ -61,6 +66,7 @@ export function extractAvailableFilters(courses: Course[]): AvailableFilters {
     promos: Array.from(promos).sort(),
     kinds: Array.from(kinds).sort(),
     subjects: Array.from(subjects).sort(),
+    teachers: Array.from(teachers).sort((a, b) => a.localeCompare(b, "fr")),
     tags: Array.from(tags).sort(),
     rooms: Array.from(rooms).sort(),
     floors: Array.from(floors).sort(),
@@ -69,14 +75,13 @@ export function extractAvailableFilters(courses: Course[]): AvailableFilters {
 
 /**
  * Filtre les cours selon les critères combinables et la recherche.
- * Règle AGENTS.md : un filtre sauvegardé dont la valeur n'existe plus dans le flux est ignoré.
+ * Règle AGENTS.md : un filtre sauvegardé dont la valeur n'existe plus est ignoré.
  */
 export function filterCourses(
   courses: Course[],
   criteria: FilterCriteria,
   available: AvailableFilters
 ): Course[] {
-  // Vérification de validité des filtres par rapport aux valeurs actuelles du flux
   const validPromo =
     criteria.selectedPromo && available.promos.includes(criteria.selectedPromo)
       ? criteria.selectedPromo
@@ -90,6 +95,11 @@ export function filterCourses(
   const validSubject =
     criteria.selectedSubject && available.subjects.includes(criteria.selectedSubject)
       ? criteria.selectedSubject
+      : null;
+
+  const validTeacher =
+    criteria.selectedTeacher && available.teachers.includes(criteria.selectedTeacher)
+      ? criteria.selectedTeacher
       : null;
 
   const validTag =
@@ -115,50 +125,40 @@ export function filterCourses(
     .filter(Boolean);
 
   return courses.filter((course) => {
-    // 1. Matière masquée ?
     if (hiddenSet.has(course.subject)) {
       return false;
     }
-
-    // 2. Filtre promo
     if (validPromo && course.promo !== validPromo) {
       return false;
     }
-
-    // 3. Filtre type / kind
     if (validKind && course.kind !== validKind) {
       return false;
     }
-
-    // 4. Filtre matière sélectionnée
     if (validSubject && course.subject !== validSubject) {
       return false;
     }
-
-    // 5. Filtre tag / sous-groupe
+    if (validTeacher && course.teacher !== validTeacher) {
+      return false;
+    }
     if (validTag && !course.tags.includes(validTag)) {
       return false;
     }
-
-    // 6. Filtre salle
     if (validRoom && course.room !== validRoom) {
       return false;
     }
-
-    // 7. Filtre étage (premier chiffre de la salle)
     if (validFloor) {
       if (!course.room || !course.room.startsWith(validFloor)) {
         return false;
       }
     }
 
-    // 8. Recherche textuelle multi-termes insensible à la casse
     if (searchTerms.length > 0) {
       const roomStr = course.room ?? "";
+      const teacherStr = course.teacher ?? "";
       const tagsStr = course.tags.join(" ");
       const promoStr = course.promo ?? "";
       const kindStr = course.kind ?? "";
-      const haystack = `${course.title} ${roomStr} ${course.subject} ${promoStr} ${kindStr} ${tagsStr}`.toLowerCase();
+      const haystack = `${course.title} ${teacherStr} ${roomStr} ${course.subject} ${promoStr} ${kindStr} ${tagsStr}`.toLowerCase();
 
       for (const term of searchTerms) {
         if (!haystack.includes(term)) {
@@ -179,6 +179,7 @@ export function countActiveFilters(criteria: FilterCriteria): number {
   if (criteria.selectedPromo) count++;
   if (criteria.selectedKind) count++;
   if (criteria.selectedSubject) count++;
+  if (criteria.selectedTeacher) count++;
   if (criteria.selectedTag) count++;
   if (criteria.selectedRoom) count++;
   if (criteria.selectedFloor) count++;

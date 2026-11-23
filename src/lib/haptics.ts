@@ -110,7 +110,7 @@ export const haptics = {
     if (!canTrigger()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   },
-  /** Validation réussie : sauvegarde note, URL ICS, ajout matière */
+  /** Validation réussie : sauvegarde note, classe GEII, ajout matière */
   success() {
     if (!canTrigger()) return;
     Haptics.notificationAsync(

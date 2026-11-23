@@ -2,7 +2,7 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { formatTime, getParisDateString } from "./dates";
-import { Course } from "./ics";
+import { Course, addDaysIso, isCourseDS, parisToEpoch } from "./geii-api";
 
 // Configuration du gestionnaire de notifications pour le premier plan
 Notifications.setNotificationHandler({
@@ -129,19 +129,20 @@ export async function scheduleAllNotifications(
         if (scheduledCount >= MAX_IOS_NOTIFICATIONS) break;
 
         const [y, m, d] = dateStr.split("-").map(Number);
-        // Date du résumé du matin en heure locale Paris
-        const briefingDate = new Date(Date.UTC(y, m - 1, d, targetHour - 1, targetMinute, 0));
-        const triggerMs = briefingDate.getTime();
+        // Date du résumé du matin en heure exacte Europe/Paris (été/hiver gérés)
+        const triggerMs = parisToEpoch(y, m, d, targetHour, targetMinute, 0);
+        const briefingDate = new Date(triggerMs);
 
         if (triggerMs > now + 10000 && dayList.length > 0) {
           const first = dayList[0];
           const firstRoom = first.room ?? "salle non communiquée";
+          const teacherPart = first.teacher ? ` • ${first.teacher}` : "";
           const courseWord = dayList.length === 1 ? "1 cours" : `${dayList.length} cours`;
 
           await Notifications.scheduleNotificationAsync({
             content: {
               title: "📅 Emploi du temps du jour",
-              body: `${courseWord} aujourd'hui. 1er cours : ${first.title} à ${formatTime(first.start)} (${firstRoom}).`,
+              body: `${courseWord} aujourd'hui. 1er cours : ${first.title} à ${formatTime(first.start)} (${firstRoom}${teacherPart}).`,
               data: { type: "morning_briefing", date: dateStr },
             },
             trigger: {
@@ -159,20 +160,21 @@ export async function scheduleAllNotifications(
       for (const course of upcomingCourses) {
         if (scheduledCount >= MAX_IOS_NOTIFICATIONS) break;
 
-        const isDS = course.kind === "DS" || course.title.toUpperCase().includes("_DS");
-        if (isDS) {
-          // La veille à 20h00
+        if (isCourseDS(course)) {
+          // La veille à 20h00 heure Europe/Paris
           const courseDateStr = getParisDateString(course.start);
-          const [y, m, d] = courseDateStr.split("-").map(Number);
-          const eveDate = new Date(Date.UTC(y, m - 1, d - 1, 19, 0, 0)); // 20h Paris
-          const triggerMs = eveDate.getTime();
+          const eveDateStr = addDaysIso(courseDateStr, -1);
+          const [y, m, d] = eveDateStr.split("-").map(Number);
+          const triggerMs = parisToEpoch(y, m, d, 20, 0, 0);
+          const eveDate = new Date(triggerMs);
 
           if (triggerMs > now + 10000) {
             const roomText = course.room ?? "salle non communiquée";
+            const teacherPart = course.teacher ? ` • ${course.teacher}` : "";
             await Notifications.scheduleNotificationAsync({
               content: {
                 title: "📝 Rappel DS demain",
-                body: `${course.title} à ${formatTime(course.start)} en salle ${roomText}.`,
+                body: `${course.title} à ${formatTime(course.start)} en salle ${roomText}${teacherPart}.`,
                 data: { type: "ds_alert", courseKey: course.key },
               },
               trigger: {
@@ -193,13 +195,14 @@ export async function scheduleAllNotifications(
       const triggerMs = course.start - settings.leadTimeMinutes * 60 * 1000;
       if (triggerMs > now + 5000) {
         const roomText = course.room ?? "salle non communiquée";
-        const isDS = course.kind === "DS" || course.title.toUpperCase().includes("_DS");
+        const teacherPart = course.teacher ? ` • ${course.teacher}` : "";
+        const isDS = isCourseDS(course);
         const prefix = isDS ? "📝 [DS] " : course.kind ? `[${course.kind}] ` : "";
 
         await Notifications.scheduleNotificationAsync({
           content: {
             title: `${prefix}${course.title}`,
-            body: `Dans ${settings.leadTimeMinutes} min (${formatTime(course.start)}) • Salle : ${roomText}`,
+            body: `Dans ${settings.leadTimeMinutes} min (${formatTime(course.start)}) • Salle : ${roomText}${teacherPart}`,
             data: { courseKey: course.key },
           },
           trigger: {

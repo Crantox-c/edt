@@ -301,6 +301,42 @@ export function FilterModal({
             </View>
           )}
 
+          {availableFilters.teachers.length > 0 && (
+            <View
+              style={[
+                styles.sectionCard,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.cardBorder,
+                },
+              ]}
+            >
+              <ThemedText type="overline" themeColor="textSecondary">
+                Enseignant
+              </ThemedText>
+              <View style={styles.chipsRow}>
+                {renderChip(
+                  "teacher-all",
+                  "Tous",
+                  criteria.selectedTeacher === null,
+                  () => onUpdateCriteria({ selectedTeacher: null })
+                )}
+                {availableFilters.teachers.map((teacher) =>
+                  renderChip(
+                    `teacher-${teacher}`,
+                    teacher,
+                    criteria.selectedTeacher === teacher,
+                    () =>
+                      onUpdateCriteria({
+                        selectedTeacher:
+                          criteria.selectedTeacher === teacher ? null : teacher,
+                      })
+                  )
+                )}
+              </View>
+            </View>
+          )}
+
           {availableFilters.tags.length > 0 && (
             <View
               style={[
