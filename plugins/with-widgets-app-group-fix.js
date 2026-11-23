@@ -2,7 +2,7 @@ const { withDangerousMod } = require("expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
-const PATCH_MARKER = "resolveAppGroupIdentifierV2";
+const PATCH_MARKER = "resolveAppGroupIdentifierV3";
 const UTILS_PATCH_MARKER = "ExpoWidgetsTimelineSafeParseV2";
 
 const PATCHED_WIDGETS_STORAGE_SWIFT = `import Foundation
@@ -100,8 +100,33 @@ public enum WidgetsStorage {
     return unique
   }
 
-  // resolveAppGroupIdentifierV2
-  private static func resolveAppGroupIdentifierV2() -> String? {
+  private static func pickBestAppGroup(from list: [String], configured: String?) -> String? {
+    guard !list.isEmpty else {
+      return nil
+    }
+    let nonExtension = list.filter {
+      !$0.contains(".widgets") && !$0.contains(".ExpoWidgetsTarget")
+    }
+    let pool = nonExtension.isEmpty ? list : nonExtension
+    let sorted = pool.sorted {
+      $0.count != $1.count ? $0.count < $1.count : $0 < $1
+    }
+
+    if let configured, !configured.isEmpty {
+      let baseSlug = configured.replacingOccurrences(of: "group.", with: "")
+      if let matchingPrefix = sorted.first(where: { $0.hasPrefix(configured) }) {
+        return matchingPrefix
+      }
+      if !baseSlug.isEmpty, let matchingSlug = sorted.first(where: { $0.contains(baseSlug) }) {
+        return matchingSlug
+      }
+    }
+
+    return sorted.first
+  }
+
+  // resolveAppGroupIdentifierV3
+  private static func resolveAppGroupIdentifierV3() -> String? {
     var configured: String? = nil
     for bundle in candidateBundles() {
       if let val = (bundle.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -121,24 +146,30 @@ public enum WidgetsStorage {
       FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: $0) != nil
     }
 
-    if let configured, !configured.isEmpty {
-      let baseSlug = configured.replacingOccurrences(of: "group.", with: "")
-      if let matchingPrefix = accessible.first(where: { $0.hasPrefix(configured) }) {
-        return matchingPrefix
-      }
-      if !baseSlug.isEmpty, let matchingSlug = accessible.first(where: { $0.contains(baseSlug) }) {
-        return matchingSlug
+    if Bundle.main.bundleURL.pathExtension == "appex" {
+      let hostAppUrl = Bundle.main.bundleURL
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+      if let hostBundle = Bundle(url: hostAppUrl) {
+        let selfGroups = Set(readAppGroupsFromProvisioningProfile(in: Bundle.main))
+        let hostGroups = Set(readAppGroupsFromProvisioningProfile(in: hostBundle))
+        let sharedAccessible = accessible.filter {
+          selfGroups.contains($0) && hostGroups.contains($0)
+        }
+        if let bestShared = pickBestAppGroup(from: sharedAccessible, configured: configured) {
+          return bestShared
+        }
       }
     }
 
-    if let firstAccessible = accessible.first {
-      return firstAccessible
+    if let bestAccessible = pickBestAppGroup(from: accessible, configured: configured) {
+      return bestAccessible
     }
 
     return (configured?.isEmpty == false) ? configured : candidates.first
   }
 
-  public static var appGroupIdentifier: String? = resolveAppGroupIdentifierV2()
+  public static var appGroupIdentifier: String? = resolveAppGroupIdentifierV3()
   static let defaults: UserDefaults? = appGroupIdentifier.flatMap { UserDefaults(suiteName: $0) }
 
   private static func storageDirectoryUrl() -> URL? {
@@ -261,10 +292,11 @@ public enum WidgetsStorage {
   public static func diagnosticSummary(for name: String) -> String {
     let key = "__expo_widgets_\\(name)_timeline"
     let dirOk = storageDirectoryUrl() != nil ? "OK" : "NO"
+    let provCount = readAppGroupsFromProvisioningProfile(in: Bundle.main).count
     let fileCount = (readPlistObject(forKey: key) as? [Any])?.count ?? 0
     let defaultsCount = defaults?.array(forKey: key)?.count ?? 0
     let groupShort = appGroupIdentifier ?? "nil"
-    return "g=\\(groupShort) d=\\(dirOk) f=\\(fileCount) u=\\(defaultsCount)"
+    return "g=\\(groupShort) d=\\(dirOk) p=\\(provCount) f=\\(fileCount) u=\\(defaultsCount)"
   }
 }
 `;

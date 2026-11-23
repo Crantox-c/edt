@@ -38,8 +38,61 @@ jobs:
 
       - name: Package into unsigned IPA
         run: |
+          set -euo pipefail
           mkdir -p Payload
           cp -R ios/build/App.xcarchive/Products/Applications/*.app Payload/
+
+          APP_PATH=$(ls -d Payload/*.app | head -n 1)
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: Built .app bundle not found inside Payload/" >&2
+            exit 1
+          fi
+
+          APP_GROUP=$(/usr/libexec/PlistBuddy -c "Print :ExpoWidgetsAppGroupIdentifier" "$APP_PATH/Info.plist")
+          if [ -z "$APP_GROUP" ]; then
+            echo "ERROR: ExpoWidgetsAppGroupIdentifier is missing or empty in $APP_PATH/Info.plist" >&2
+            exit 1
+          fi
+
+          cat <<EOF > widget-entitlements.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>com.apple.security.application-groups</key>
+            <array>
+              <string>${APP_GROUP}</string>
+            </array>
+          </dict>
+          </plist>
+          EOF
+
+          if [ -d "$APP_PATH/Frameworks" ]; then
+            find "$APP_PATH/Frameworks" -maxdepth 1 \( -name "*.framework" -o -name "*.dylib" \) -print0 | while IFS= read -r -d '' fw; do
+              codesign --force --sign - "$fw"
+            done
+          fi
+
+          APPEX_COUNT=0
+          if [ -d "$APP_PATH/PlugIns" ]; then
+            for appex in "$APP_PATH/PlugIns/"*.appex; do
+              [ -e "$appex" ] || continue
+              codesign --force --sign - --entitlements widget-entitlements.plist "$appex"
+              codesign -d --entitlements - --xml "$appex" > ent-check.plist
+              grep -Fq "<string>${APP_GROUP}</string>" ent-check.plist
+              APPEX_COUNT=$((APPEX_COUNT + 1))
+            done
+          fi
+          if [ "$APPEX_COUNT" -eq 0 ]; then
+            echo "ERROR: No .appex widget extension found in $APP_PATH/PlugIns" >&2
+            exit 1
+          fi
+
+          codesign --force --sign - --entitlements widget-entitlements.plist "$APP_PATH"
+          codesign -d --entitlements - --xml "$APP_PATH" > ent-check.plist
+          grep -Fq "<string>${APP_GROUP}</string>" ent-check.plist
+
+          rm -f widget-entitlements.plist ent-check.plist
           zip -r -y app-unsigned.ipa Payload
 
       - name: Upload IPA artifact
