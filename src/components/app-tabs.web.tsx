@@ -24,6 +24,9 @@ export default function AppTabs() {
           <TabTrigger name="home" href="/" asChild>
             <TabButton icon="calendar">Agenda</TabButton>
           </TabTrigger>
+          <TabTrigger name="qibla" href="/qibla" asChild>
+            <TabButton icon="location.north.circle.fill">Qibla</TabButton>
+          </TabTrigger>
           <TabTrigger name="search" href="/search" asChild>
             <TabButton icon="magnifyingglass">Recherche</TabButton>
           </TabTrigger>
@@ -42,7 +45,11 @@ export function TabButton({
   icon,
   ...props
 }: TabTriggerSlotProps & {
-  icon: "calendar" | "gearshape.fill" | "magnifyingglass";
+  icon:
+    | "calendar"
+    | "location.north.circle.fill"
+    | "gearshape.fill"
+    | "magnifyingglass";
 }) {
   const theme = useTheme();
   return (

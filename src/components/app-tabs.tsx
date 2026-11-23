@@ -36,6 +36,20 @@ export default function AppTabs() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger
+        name="qibla"
+        listeners={{ tabPress: () => haptics.selection() }}
+      >
+        <NativeTabs.Trigger.Label>Qibla</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
+          sf={{
+            default: "location.north.circle",
+            selected: "location.north.circle.fill",
+          }}
+          md="explore"
+        />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger
         name="explore"
         listeners={{ tabPress: () => haptics.selection() }}
       >

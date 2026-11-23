@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
   s.swift_version  = '5.9'
   s.source         = { :git => '' }
   s.static_framework = true
-  s.frameworks       = 'Metal', 'QuartzCore', 'UIKit'
+  s.frameworks       = 'Metal', 'QuartzCore', 'UIKit', 'CoreLocation', 'CoreHaptics'
 
   s.dependency 'ExpoModulesCore'
 

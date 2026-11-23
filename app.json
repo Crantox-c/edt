@@ -10,6 +10,9 @@
     "backgroundColor": "#000000",
     "ios": {
       "bundleIdentifier": "com.km.geiiedt",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Votre position est utilisée localement sur l'appareil pour calculer la direction exacte de la Qibla et la distance vers La Mecque."
+      },
       "icon": {
         "light": "./assets/images/app-icon/AppIcon-Standard-1024.png",
         "dark": "./assets/images/app-icon/AppIcon-Dark-1024.png",

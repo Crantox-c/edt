@@ -19,6 +19,10 @@ public final class EdrTextModule: Module {
       return MTLCreateSystemDefaultDevice() != nil
     }
 
+    Constant("isQiblaCompassAvailable") {
+      return MTLCreateSystemDefaultDevice() != nil
+    }
+
     Function("boostGlassEdr") {
       #if compiler(>=6.2)
       if #available(iOS 26.0, *) {
@@ -120,6 +124,66 @@ public final class EdrTextModule: Module {
 
       Prop("reducedMotion") { (view, reduced: Bool?) in
         view.reducedMotionProp = reduced ?? false
+      }
+
+      OnViewDidUpdateProps { view in
+        view.applyUpdatedProps()
+      }
+    }
+
+    View(QiblaCompassView.self) {
+      Events("onQiblaUpdate")
+
+      Prop("accentColor") { (view: QiblaCompassView, color: UIColor?) in
+        view.setAccentColor(color)
+      }
+
+      Prop("alignedColor") { (view: QiblaCompassView, color: UIColor?) in
+        view.setAlignedColor(color)
+      }
+
+      Prop("northColor") { (view: QiblaCompassView, color: UIColor?) in
+        view.setNorthColor(color)
+      }
+
+      Prop("ringColor") { (view: QiblaCompassView, color: UIColor?) in
+        view.setRingColor(color)
+      }
+
+      Prop("tickColor") { (view: QiblaCompassView, color: UIColor?) in
+        view.setTickColor(color)
+      }
+
+      Prop("textColor") { (view: QiblaCompassView, color: UIColor?) in
+        view.setTextColor(color)
+      }
+
+      Prop("surfaceColor") { (view: QiblaCompassView, color: UIColor?) in
+        view.setSurfaceColor(color)
+      }
+
+      Prop("isDark") { (view: QiblaCompassView, value: Bool) in
+        view.setIsDark(value)
+      }
+
+      Prop("reducedMotion") { (view: QiblaCompassView, value: Bool) in
+        view.setReducedMotion(value)
+      }
+
+      Prop("hapticsEnabled") { (view: QiblaCompassView, value: Bool) in
+        view.setHapticsEnabled(value)
+      }
+
+      Prop("active") { (view: QiblaCompassView, value: Bool) in
+        view.setActive(value)
+      }
+
+      Prop("permissionRequestNonce") { (view: QiblaCompassView, value: Int) in
+        view.setPermissionRequestNonce(value)
+      }
+
+      Prop("refreshNonce") { (view: QiblaCompassView, value: Int) in
+        view.setRefreshNonce(value)
       }
 
       OnViewDidUpdateProps { view in
