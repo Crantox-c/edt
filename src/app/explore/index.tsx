@@ -8,6 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollViewMarker } from "react-native-screens/experimental";
 import { SymbolView } from "expo-symbols";
@@ -23,7 +24,6 @@ import { ThemedText } from "@/components/themed-text";
 import { AmbientBackground } from "@/components/ui/ambient-background";
 import { GlassButton } from "@/components/ui/glass-button";
 import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
-import { StatusBarProgressiveBlur } from "@/components/ui/status-bar-blur";
 import {
   FontFamilies,
   MaxContentWidth,
@@ -199,6 +199,8 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <Stack.Screen options={{ title: "Réglages" }} />
+
       <ScrollViewMarker
         style={[styles.scrollView, styles.scrollLayer]}
         scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
@@ -221,7 +223,9 @@ export default function SettingsScreen() {
           <ThemedText type="overline" themeColor="accent">
             Préférences & Bilan
           </ThemedText>
-          <ThemedText type="largeTitle">Réglages & Stats</ThemedText>
+          {Platform.OS !== "ios" && (
+            <ThemedText type="largeTitle">Réglages & Stats</ThemedText>
+          )}
           <ThemedText type="caption" themeColor="textSecondary">
             Apparence, accentuation, haptique, classe GEII, rappels et matières
           </ThemedText>
@@ -1021,7 +1025,6 @@ export default function SettingsScreen() {
       </ScrollViewMarker>
 
       <AmbientBackground />
-      <StatusBarProgressiveBlur />
 
       <ClassPickerModal
         visible={isClassPickerOpen}

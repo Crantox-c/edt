@@ -24,7 +24,7 @@ export default function AppTabs() {
       }}
     >
       <NativeTabs.Trigger
-        name="index"
+        name="(agenda)"
         listeners={{ tabPress: () => haptics.selection() }}
       >
         <NativeTabs.Trigger.Label>Agenda</NativeTabs.Trigger.Label>

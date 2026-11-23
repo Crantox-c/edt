@@ -19,6 +19,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollViewMarker } from "react-native-screens/experimental";
 import { SymbolView } from "expo-symbols";
@@ -40,7 +41,6 @@ import {
   GlassSurface,
   GlassSurfaceContainer,
 } from "@/components/ui/glass-surface";
-import { StatusBarProgressiveBlur } from "@/components/ui/status-bar-blur";
 import { WeekView } from "@/components/week-view";
 import {
   MaxContentWidth,
@@ -229,6 +229,42 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      <Stack.Screen options={{ title: "Emploi du temps" }} />
+      {Platform.OS === "ios" && (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button
+            icon="slider.horizontal.3"
+            tintColor={activeFilterCount > 0 ? accent.primary : undefined}
+            selected={activeFilterCount > 0}
+            accessibilityLabel="Filtres"
+            onPress={() => {
+              haptics.soft();
+              setIsFilterModalOpen(true);
+            }}
+          >
+            <Stack.Toolbar.Label>Filtres</Stack.Toolbar.Label>
+            {activeFilterCount > 0 ? (
+              <Stack.Toolbar.Badge>
+                {String(activeFilterCount)}
+              </Stack.Toolbar.Badge>
+            ) : null}
+          </Stack.Toolbar.Button>
+          <Stack.Toolbar.Button
+            icon="arrow.clockwise"
+            variant="prominent"
+            tintColor={accent.solidBg}
+            separateBackground
+            accessibilityLabel="Actualiser l'emploi du temps"
+            onPress={() => {
+              haptics.toggle();
+              handleManualRefresh();
+            }}
+          >
+            <Stack.Toolbar.Label>Actualiser</Stack.Toolbar.Label>
+          </Stack.Toolbar.Button>
+        </Stack.Toolbar>
+      )}
+
       <ScrollViewMarker
         style={[styles.scrollView, styles.scrollLayer]}
         scrollEdgeEffects={{ top: "soft", bottom: "soft" }}
@@ -261,14 +297,16 @@ export default function HomeScreen() {
               <ThemedText type="overline" themeColor="accent">
                 {monthLabel}
               </ThemedText>
-              <ThemedText
-                type="largeTitle"
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                Emploi du temps
-              </ThemedText>
+              {Platform.OS !== "ios" && (
+                <ThemedText
+                  type="largeTitle"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  Emploi du temps
+                </ThemedText>
+              )}
               <Animated.View
                 pointerEvents={showSyncMeta ? "auto" : "none"}
                 style={[styles.syncMetaRow, syncMetaCollapseStyle]}
@@ -302,90 +340,92 @@ export default function HomeScreen() {
               </Animated.View>
             </View>
 
-            <GlassSurfaceContainer spacing={8} style={styles.headerActions}>
-              {/* Bouton pilule Filtres combinables en Liquid Glass transparent */}
-              <Pressable
-                onPress={() => {
-                  haptics.soft();
-                  setIsFilterModalOpen(true);
-                }}
-                hitSlop={6}
-                accessibilityLabel="Filtres"
-              >
-                <GlassSurface
-                  glassEffectStyle="regular"
-                  isInteractive={true}
-                  style={styles.filterPillBtn}
-                  fallbackStyle={{
-                    backgroundColor:
-                      activeFilterCount > 0 ? accent.softBg : theme.cardBg,
-                    borderColor:
-                      activeFilterCount > 0 ? accent.border : theme.cardBorder,
+            {Platform.OS !== "ios" && (
+              <GlassSurfaceContainer spacing={8} style={styles.headerActions}>
+                {/* Bouton pilule Filtres combinables en Liquid Glass transparent */}
+                <Pressable
+                  onPress={() => {
+                    haptics.soft();
+                    setIsFilterModalOpen(true);
                   }}
+                  hitSlop={6}
+                  accessibilityLabel="Filtres"
                 >
-                  <SymbolView
-                    name={{
-                      ios: "slider.horizontal.3",
-                      android: "tune",
-                      web: "tune",
-                    }}
-                    size={17}
-                    weight="medium"
-                    tintColor={activeFilterCount > 0 ? accent.primary : theme.text}
-                  />
-                  <ThemedText
-                    type="smallBold"
-                    style={{
-                      color: activeFilterCount > 0 ? accent.primary : theme.text,
+                  <GlassSurface
+                    glassEffectStyle="regular"
+                    isInteractive={true}
+                    style={styles.filterPillBtn}
+                    fallbackStyle={{
+                      backgroundColor:
+                        activeFilterCount > 0 ? accent.softBg : theme.cardBg,
+                      borderColor:
+                        activeFilterCount > 0 ? accent.border : theme.cardBorder,
                     }}
                   >
-                    Filtres
-                  </ThemedText>
-                  {activeFilterCount > 0 && (
-                    <View
-                      style={[
-                        styles.filterCountBadge,
-                        { backgroundColor: accent.solidBg },
-                      ]}
+                    <SymbolView
+                      name={{
+                        ios: "slider.horizontal.3",
+                        android: "tune",
+                        web: "tune",
+                      }}
+                      size={17}
+                      weight="medium"
+                      tintColor={activeFilterCount > 0 ? accent.primary : theme.text}
+                    />
+                    <ThemedText
+                      type="smallBold"
+                      style={{
+                        color: activeFilterCount > 0 ? accent.primary : theme.text,
+                      }}
                     >
-                      <ThemedText
-                        type="captionBold"
+                      Filtres
+                    </ThemedText>
+                    {activeFilterCount > 0 && (
+                      <View
                         style={[
-                          styles.filterCountText,
-                          { color: theme.textOnAccent },
+                          styles.filterCountBadge,
+                          { backgroundColor: accent.solidBg },
                         ]}
                       >
-                        {activeFilterCount}
-                      </ThemedText>
-                    </View>
-                  )}
-                </GlassSurface>
-              </Pressable>
+                        <ThemedText
+                          type="captionBold"
+                          style={[
+                            styles.filterCountText,
+                            { color: theme.textOnAccent },
+                          ]}
+                        >
+                          {activeFilterCount}
+                        </ThemedText>
+                      </View>
+                    )}
+                  </GlassSurface>
+                </Pressable>
 
-              {/* Bouton rafraîchir en Liquid Glass opaque couleur d'accentuation */}
-              <GlassButton
-                onPress={handleManualRefresh}
-                haptic="toggle"
-                hitSlop={6}
-                accessibilityLabel="Actualiser l'emploi du temps"
-                tintColor={accent.solidBg}
-                borderColor={accent.primary}
-                style={styles.circleActionBtn}
-              >
-                <Animated.View style={spinStyle}>
-                  <SymbolView
-                    name={{
-                      ios: "arrow.clockwise",
-                      android: "refresh",
-                      web: "refresh",
-                    }}
-                    size={19}
-                    weight="medium"
-                    tintColor={theme.textOnAccent}
-                  />
-                </Animated.View>
-              </GlassButton>
-            </GlassSurfaceContainer>
+                {/* Bouton rafraîchir en Liquid Glass opaque couleur d'accentuation */}
+                <GlassButton
+                  onPress={handleManualRefresh}
+                  haptic="toggle"
+                  hitSlop={6}
+                  accessibilityLabel="Actualiser l'emploi du temps"
+                  tintColor={accent.solidBg}
+                  borderColor={accent.primary}
+                  style={styles.circleActionBtn}
+                >
+                  <Animated.View style={spinStyle}>
+                    <SymbolView
+                      name={{
+                        ios: "arrow.clockwise",
+                        android: "refresh",
+                        web: "refresh",
+                      }}
+                      size={19}
+                      weight="medium"
+                      tintColor={theme.textOnAccent}
+                    />
+                  </Animated.View>
+                </GlassButton>
+              </GlassSurfaceContainer>
+            )}
           </View>
 
           {isStale && (
@@ -564,7 +604,6 @@ export default function HomeScreen() {
       </ScrollViewMarker>
 
       <AmbientBackground />
-      <StatusBarProgressiveBlur />
 
       {/* Feuille détail du cours */}
       <CourseDetailModal
