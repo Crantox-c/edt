@@ -156,7 +156,7 @@ const DayAgendaWidget = createWidget<DayAgendaWidgetProps>(
                 ? "EN COURS"
                 : row.isDS
                   ? "DS"
-                  : row.kind;
+                  : row.kind || null;
               const badgeBg = row.isActive
                 ? palette.liveSoft
                 : row.isDS
@@ -341,7 +341,7 @@ const DayAgendaWidget = createWidget<DayAgendaWidgetProps>(
               ? `+${props.extraCount} autre${props.extraCount > 1 ? "s" : ""}`
               : props.isToday
                 ? "Aujourd'hui"
-                : "Prochaine journée"}
+                : "Prochain jour de cours"}
           </Text>
           <Spacer />
           <Text

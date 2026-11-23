@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ColorValue,
   StyleProp,
@@ -15,6 +15,7 @@ import {
   GlassView,
 } from "expo-glass-effect";
 
+import { boostLiquidGlassEdr } from "@/components/ui/edr-text";
 import { useLiquidGlass } from "@/hooks/use-liquid-glass";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -45,6 +46,12 @@ export function GlassSurface({
 }: GlassSurfaceProps) {
   const theme = useTheme();
   const canUseGlass = useLiquidGlass();
+
+  useEffect(() => {
+    if (canUseGlass) {
+      boostLiquidGlassEdr();
+    }
+  }, [canUseGlass]);
 
   if (canUseGlass) {
     const resolvedScheme = colorScheme ?? (theme.isDark ? "dark" : "light");

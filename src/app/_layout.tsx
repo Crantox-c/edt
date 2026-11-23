@@ -15,6 +15,7 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from "@expo-google-fonts/plus-jakarta-sans";
 import { useEffect } from "react";
+import { AppState } from "react-native";
 import { useFonts } from "expo-font";
 import {
   DarkTheme,
@@ -25,6 +26,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 
 import AppTabs from "@/components/app-tabs";
+import { boostLiquidGlassEdr } from "@/components/ui/edr-text";
 import { ScheduleProvider } from "@/hooks/use-schedule";
 import { ThemeProvider, useTheme } from "@/hooks/use-theme";
 
@@ -33,6 +35,16 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 function RootNavigator() {
   const theme = useTheme();
   const navTheme = theme.isDark ? DarkTheme : DefaultTheme;
+
+  useEffect(() => {
+    boostLiquidGlassEdr();
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        boostLiquidGlassEdr();
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   return (
     <NavigationThemeProvider value={navTheme}>

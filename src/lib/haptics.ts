@@ -83,6 +83,18 @@ export const haptics = {
     if (!canTrigger()) return;
     Haptics.selectionAsync().catch(() => {});
   },
+  /** Micro-tic fin entre deux jours pendant le défilement de la barre de jours */
+  wheelSubTick() {
+    if (!canTrigger()) return;
+    Haptics.selectionAsync().catch(() => {});
+  },
+  /** Cran tactile marqué à chaque passage sur un jour (plus net si défilement rapide) */
+  wheelDayTick(fast = false) {
+    if (!canTrigger()) return;
+    Haptics.impactAsync(
+      fast ? Haptics.ImpactFeedbackStyle.Rigid : Haptics.ImpactFeedbackStyle.Light
+    ).catch(() => {});
+  },
   /** Tap léger sur cartes de cours, flèches, chips standards */
   tap() {
     if (!canTrigger()) return;

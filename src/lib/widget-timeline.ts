@@ -16,6 +16,7 @@ import {
   formatWeekHeader,
   getMondayOfWeek,
   getParisDateString,
+  getParisMinutesOfDay,
   getWeekDays,
 } from "@/lib/dates";
 import { Course } from "@/lib/ics";
@@ -56,7 +57,7 @@ export type WidgetCourseRow = {
   timeRange: string;
   startLabel: string;
   endLabel: string;
-  kind: Course["kind"];
+  kind: string;
   isDS: boolean;
   isActive: boolean;
   progress: number;
@@ -70,7 +71,7 @@ export type WidgetCourseRow = {
 
 export type NextCourseWidgetProps = {
   status: "active" | "upcoming" | "empty";
-  course: WidgetCourseRow | null;
+  course?: WidgetCourseRow;
   dayContext: string;
   countdownLabel: string;
   useLiveTimer: boolean;
@@ -88,7 +89,7 @@ export type DayAgendaWidgetProps = {
   totalCount: number;
   rows: WidgetCourseRow[];
   extraCount: number;
-  nextSchoolDayLabel: string | null;
+  nextSchoolDayLabel: string;
   entryMs: number;
   updatedAtLabel: string;
   paletteDark: WidgetPalette;
@@ -116,7 +117,7 @@ export type WeekOverviewWidgetProps = {
   days: WeekDayLoad[];
   upcomingRows: WeekUpcomingRow[];
   extraUpcomingCount: number;
-  nextDsSummary: string | null;
+  nextDsSummary: string;
   entryMs: number;
   updatedAtLabel: string;
   paletteDark: WidgetPalette;
@@ -195,7 +196,7 @@ function buildCourseRow(
     timeRange: formatTimeRange(course.start, course.end),
     startLabel: formatTime(course.start),
     endLabel: formatTime(course.end),
-    kind: course.kind,
+    kind: course.kind ?? "",
     isDS: isCourseDS(course),
     isActive,
     progress,
@@ -295,7 +296,6 @@ function buildNextCourseProps(
 
   return {
     status: "empty",
-    course: null,
     dayContext: formatDayHeaderCompact(entryDateStr),
     countdownLabel: "Aucun cours à venir",
     useLiveTimer: false,
@@ -334,7 +334,7 @@ function buildDayAgendaProps(
       totalCount: todayRemaining.length,
       rows: shown,
       extraCount: Math.max(0, todayRemaining.length - shown.length),
-      nextSchoolDayLabel: null,
+      nextSchoolDayLabel: "",
       entryMs: atMs,
       updatedAtLabel,
       paletteDark,
@@ -342,7 +342,7 @@ function buildDayAgendaProps(
     };
   }
 
-  // Si la journée est terminée ou libre, afficher la prochaine journée de cours
+  // Si aucun cours (ou aucun cours restant) dans la journée, afficher le prochain jour contenant des cours
   const nextCourse = courses.find((c) => c.end > atMs);
   if (nextCourse) {
     const nextDateStr = getParisDateString(nextCourse.start);
@@ -377,7 +377,7 @@ function buildDayAgendaProps(
     totalCount: 0,
     rows: [],
     extraCount: 0,
-    nextSchoolDayLabel: null,
+    nextSchoolDayLabel: "",
     entryMs: atMs,
     updatedAtLabel,
     paletteDark,
@@ -400,20 +400,17 @@ function buildWeekOverviewProps(
   const currentWeekDaysAll = getWeekDays(mondayStr, true);
   const sundayStr = currentWeekDaysAll[6];
 
-  // Si on est dimanche (ou samedi soir sans cours restant cette semaine), basculer sur la semaine suivante si elle a des cours
+  // Si aucun cours restant cette semaine, basculer sur la prochaine semaine contenant des cours
   const hasRemainingThisWeek = courses.some((c) => {
     const d = getParisDateString(c.start);
     return d >= entryDateStr && d <= sundayStr && c.end > atMs;
   });
   if (!hasRemainingThisWeek) {
-    const nextMonday = addDays(mondayStr, 7);
-    const nextSunday = addDays(nextMonday, 6);
-    const hasNextWeek = courses.some((c) => {
-      const d = getParisDateString(c.start);
-      return d >= nextMonday && d <= nextSunday;
-    });
-    if (hasNextWeek) {
-      mondayStr = nextMonday;
+    const nextFutureCourse = courses.find(
+      (c) => getParisDateString(c.start) >= entryDateStr && c.end > atMs
+    );
+    if (nextFutureCourse) {
+      mondayStr = getMondayOfWeek(getParisDateString(nextFutureCourse.start));
     }
   }
 
@@ -475,7 +472,7 @@ function buildWeekOverviewProps(
   });
 
   const nextDs = courses.find((c) => c.end > atMs && isCourseDS(c));
-  let nextDsSummary: string | null = null;
+  let nextDsSummary = "";
   if (nextDs) {
     const dsDate = getParisDateString(nextDs.start);
     const dsLabel = resolveSubjectReadableName(nextDs.subject, subjectDict) ?? nextDs.title;
@@ -497,9 +494,75 @@ function buildWeekOverviewProps(
   };
 }
 
+function getParisMidnightMs(dateStr: string): number {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const utcMidnight = Date.UTC(y, m - 1, d, 0, 0, 0);
+  for (const offsetHours of [-2, -1, 0]) {
+    const candidate = utcMidnight + offsetHours * 3600000;
+    if (
+      getParisDateString(candidate) === dateStr &&
+      getParisMinutesOfDay(candidate) === 0
+    ) {
+      return candidate;
+    }
+  }
+  return utcMidnight - 3600000;
+}
+
+function sanitizePlistValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  if (typeof value === "boolean" || typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const out: unknown[] = [];
+    for (const item of value) {
+      const clean = sanitizePlistValue(item);
+      if (clean !== undefined) {
+        out.push(clean);
+      }
+    }
+    return out;
+  }
+  if (typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const clean = sanitizePlistValue(v);
+      if (clean !== undefined) {
+        out[k] = clean;
+      }
+    }
+    return out;
+  }
+  return undefined;
+}
+
+/**
+ * Supprime tout `null` / `undefined` / `NaN` avant stockage dans UserDefaults iOS
+ * (évite `NSInvalidArgumentException` -> `Exception in HostFunction: <unknown>`).
+ */
+function sanitizeForPlist<T extends Record<string, unknown>>(obj: T): T {
+  return (sanitizePlistValue(obj) as T) ?? ({} as T);
+}
+
 function collectTimelineTimestamps(courses: Course[], nowMs: number): number[] {
   const horizonMs = nowMs + 72 * 3600 * 1000;
   const rawPoints = new Set<number>([nowMs]);
+  const todayStr = getParisDateString(nowMs);
+
+  // Ajouter les minuits Europe/Paris des 3 prochains jours pour rafraîchir
+  // "Demain" / "Prochain" / "Aujourd'hui" même les jours sans cours.
+  for (let d = 1; d <= 3; d++) {
+    const midnightMs = getParisMidnightMs(addDays(todayStr, d));
+    if (midnightMs > nowMs) {
+      rawPoints.add(midnightMs);
+    }
+  }
 
   for (const c of courses) {
     if (c.start > nowMs && c.start <= horizonMs) {
@@ -508,6 +571,14 @@ function collectTimelineTimestamps(courses: Course[], nowMs: number): number[] {
     if (c.end > nowMs && c.end <= horizonMs) {
       rawPoints.add(c.end);
     }
+  }
+
+  // Si le prochain cours est au-delà de 72h (week-end prolongé / vacances),
+  // inclure sa fenêtre pour assurer la bascule automatique de timeline.
+  const firstUpcoming = courses.find((c) => c.end > nowMs);
+  if (firstUpcoming) {
+    if (firstUpcoming.start > nowMs) rawPoints.add(firstUpcoming.start);
+    if (firstUpcoming.end > nowMs) rawPoints.add(firstUpcoming.end);
   }
 
   // Trier chronologiquement et dédupliquer les bornes proches (< 15s)
@@ -550,44 +621,50 @@ export function buildWidgetTimelines(
 
   const nextCourseEntries = timestamps.map((ts) => ({
     date: new Date(ts),
-    props: buildNextCourseProps(
-      sortedCourses,
-      ts,
-      updatedAtLabel,
-      updatedShortLabel,
-      subjectDict,
-      darkTheme,
-      lightTheme,
-      paletteDark,
-      paletteLight
+    props: sanitizeForPlist(
+      buildNextCourseProps(
+        sortedCourses,
+        ts,
+        updatedAtLabel,
+        updatedShortLabel,
+        subjectDict,
+        darkTheme,
+        lightTheme,
+        paletteDark,
+        paletteLight
+      )
     ),
   }));
 
   const dayAgendaEntries = timestamps.map((ts) => ({
     date: new Date(ts),
-    props: buildDayAgendaProps(
-      sortedCourses,
-      ts,
-      updatedAtLabel,
-      subjectDict,
-      darkTheme,
-      lightTheme,
-      paletteDark,
-      paletteLight
+    props: sanitizeForPlist(
+      buildDayAgendaProps(
+        sortedCourses,
+        ts,
+        updatedAtLabel,
+        subjectDict,
+        darkTheme,
+        lightTheme,
+        paletteDark,
+        paletteLight
+      )
     ),
   }));
 
   const weekOverviewEntries = timestamps.map((ts) => ({
     date: new Date(ts),
-    props: buildWeekOverviewProps(
-      sortedCourses,
-      ts,
-      updatedAtLabel,
-      subjectDict,
-      darkTheme,
-      lightTheme,
-      paletteDark,
-      paletteLight
+    props: sanitizeForPlist(
+      buildWeekOverviewProps(
+        sortedCourses,
+        ts,
+        updatedAtLabel,
+        subjectDict,
+        darkTheme,
+        lightTheme,
+        paletteDark,
+        paletteLight
+      )
     ),
   }));
 

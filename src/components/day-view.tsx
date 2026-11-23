@@ -11,6 +11,8 @@ import {
   StyleSheet,
   View,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { SymbolView } from "expo-symbols";
 import { ThemedText } from "@/components/themed-text";
@@ -41,6 +43,8 @@ import { CourseCard } from "./course-card";
 import { NowIndicator } from "./now-indicator";
 
 const DAY_ITEM_WIDTH = 48;
+const TICKS_PER_DAY = 3;
+const TICK_STEP = DAY_ITEM_WIDTH / TICKS_PER_DAY;
 
 function diffDaysParis(fromStr: string, toStr: string): number {
   const [y1, m1, d1] = fromStr.split("-").map(Number);
@@ -77,6 +81,9 @@ export function DayView({
 
   const listRef = useRef<FlatList<string>>(null);
   const hasCenteredRef = useRef(false);
+  const isUserScrollingRef = useRef(false);
+  const lastTickIndexRef = useRef(0);
+  const lastHapticAtRef = useRef(0);
   const [stripWidth, setStripWidth] = useState(0);
 
   const dayCourses = useMemo(() => {
@@ -177,6 +184,51 @@ export function DayView({
   const handleStripLayout = useCallback((e: LayoutChangeEvent) => {
     setStripWidth(e.nativeEvent.layout.width);
   }, []);
+
+  const handleStripScrollBeginDrag = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isUserScrollingRef.current = true;
+      lastTickIndexRef.current = Math.round(
+        e.nativeEvent.contentOffset.x / TICK_STEP
+      );
+    },
+    []
+  );
+
+  const handleStripScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (!isUserScrollingRef.current) return;
+      const tickIndex = Math.round(e.nativeEvent.contentOffset.x / TICK_STEP);
+      if (tickIndex === lastTickIndexRef.current) return;
+
+      const steps = Math.abs(tickIndex - lastTickIndexRef.current);
+      lastTickIndexRef.current = tickIndex;
+
+      const now = Date.now();
+      if (now - lastHapticAtRef.current < 24) return;
+      lastHapticAtRef.current = now;
+
+      if (Math.abs(tickIndex) % TICKS_PER_DAY === 0) {
+        haptics.wheelDayTick(steps >= 2);
+      } else {
+        haptics.wheelSubTick();
+      }
+    },
+    []
+  );
+
+  const handleStripMomentumEnd = useCallback(() => {
+    isUserScrollingRef.current = false;
+  }, []);
+
+  const handleStripScrollEndDrag = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (Math.abs(e.nativeEvent.velocity?.x ?? 0) < 0.05) {
+        isUserScrollingRef.current = false;
+      }
+    },
+    []
+  );
 
   // Position de l'indicateur "maintenant" (hors d'un cours déjà actif)
   const hasActiveCourse =
@@ -328,6 +380,11 @@ export function DayView({
               extraData={{ selectedDate, dayTintsMap, theme, useHardwareEdr }}
               showsHorizontalScrollIndicator={false}
               decelerationRate="fast"
+              scrollEventThrottle={16}
+              onScrollBeginDrag={handleStripScrollBeginDrag}
+              onScroll={handleStripScroll}
+              onScrollEndDrag={handleStripScrollEndDrag}
+              onMomentumScrollEnd={handleStripMomentumEnd}
               initialNumToRender={15}
               windowSize={5}
               getItemLayout={(_, index) => ({

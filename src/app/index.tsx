@@ -12,6 +12,7 @@ import Animated, {
   Easing,
   FadeIn,
   FadeOut,
+  LinearTransition,
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
@@ -39,6 +40,7 @@ import {
   GlassSurface,
   GlassSurfaceContainer,
 } from "@/components/ui/glass-surface";
+import { StatusBarProgressiveBlur } from "@/components/ui/status-bar-blur";
 import { WeekView } from "@/components/week-view";
 import {
   MaxContentWidth,
@@ -130,6 +132,20 @@ export default function HomeScreen() {
   const showSyncMeta = isSyncing || hiddenSyncKey !== syncKey;
 
   const spinDeg = useSharedValue(0);
+  const syncMetaProgress = useSharedValue(showSyncMeta ? 1 : 0);
+
+  useEffect(() => {
+    const target = showSyncMeta ? 1 : 0;
+    if (isReduced) {
+      cancelAnimation(syncMetaProgress);
+      syncMetaProgress.value = target;
+      return;
+    }
+    syncMetaProgress.value = withTiming(target, {
+      duration: showSyncMeta ? 240 : 340,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [showSyncMeta, isReduced, syncMetaProgress]);
 
   useEffect(() => {
     if (isSyncing) {
@@ -158,6 +174,13 @@ export default function HomeScreen() {
 
   const spinStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${spinDeg.value}deg` }],
+  }));
+
+  const syncMetaCollapseStyle = useAnimatedStyle(() => ({
+    height: syncMetaProgress.value * 18,
+    marginTop: syncMetaProgress.value * 2,
+    opacity: syncMetaProgress.value,
+    transform: [{ translateY: (1 - syncMetaProgress.value) * -4 }],
   }));
 
   const handleSelectCourse = (course: Course) => {
@@ -239,36 +262,37 @@ export default function HomeScreen() {
               >
                 Emploi du temps
               </ThemedText>
-              {showSyncMeta && (
-                <Animated.View
-                  entering={isReduced ? undefined : FadeIn.duration(200)}
-                  exiting={isReduced ? undefined : FadeOut.duration(250)}
-                  style={styles.syncMetaRow}
+              <Animated.View
+                pointerEvents={showSyncMeta ? "auto" : "none"}
+                style={[styles.syncMetaRow, syncMetaCollapseStyle]}
+              >
+                <SymbolView
+                  name={{
+                    ios: isSyncing
+                      ? "arrow.triangle.2.circlepath"
+                      : "checkmark.circle.fill",
+                    android: isSyncing ? "sync" : "check_circle",
+                    web: isSyncing ? "sync" : "check_circle",
+                  }}
+                  size={12}
+                  tintColor={isSyncing ? accent.primary : theme.menthe[500]}
+                />
+                <ThemedText
+                  type="caption"
+                  themeColor="textSecondary"
+                  numberOfLines={1}
                 >
-                  <SymbolView
-                    name={{
-                      ios: isSyncing
-                        ? "arrow.triangle.2.circlepath"
-                        : "checkmark.circle.fill",
-                      android: isSyncing ? "sync" : "check_circle",
-                      web: isSyncing ? "sync" : "check_circle",
-                    }}
-                    size={12}
-                    tintColor={isSyncing ? accent.primary : theme.menthe[500]}
-                  />
-                  <ThemedText type="caption" themeColor="textSecondary">
-                    {isSyncing
-                      ? "Synchronisation..."
-                      : `Synchro ${formatLastSync(lastSync)}`}
-                    {courses.length > 0 &&
-                      ` • ${
-                        isFiltering
-                          ? `${filteredCourses.length}/${courses.length} cours`
-                          : `${courses.length} cours`
-                      }`}
-                  </ThemedText>
-                </Animated.View>
-              )}
+                  {isSyncing
+                    ? "Synchronisation..."
+                    : `Synchro ${formatLastSync(lastSync)}`}
+                  {courses.length > 0 &&
+                    ` • ${
+                      isFiltering
+                        ? `${filteredCourses.length}/${courses.length} cours`
+                        : `${courses.length} cours`
+                    }`}
+                </ThemedText>
+              </Animated.View>
             </View>
 
             <GlassSurfaceContainer spacing={8} style={styles.headerActions}>
@@ -358,7 +382,10 @@ export default function HomeScreen() {
           </View>
 
           {isStale && (
-            <View
+            <Animated.View
+              entering={isReduced ? undefined : FadeIn.duration(220)}
+              exiting={isReduced ? undefined : FadeOut.duration(220)}
+              layout={isReduced ? undefined : LinearTransition.duration(260)}
               style={[
                 styles.banner,
                 { backgroundColor: ambre[100], borderColor: ambre[300] },
@@ -379,11 +406,14 @@ export default function HomeScreen() {
               >
                 Données anciennes (&gt; 24h) — tirez pour actualiser
               </ThemedText>
-            </View>
+            </Animated.View>
           )}
 
           {error && (
-            <View
+            <Animated.View
+              entering={isReduced ? undefined : FadeIn.duration(220)}
+              exiting={isReduced ? undefined : FadeOut.duration(220)}
+              layout={isReduced ? undefined : LinearTransition.duration(260)}
               style={[
                 styles.banner,
                 { backgroundColor: corail[100], borderColor: corail[300] },
@@ -405,7 +435,7 @@ export default function HomeScreen() {
                 Hors-ligne ({error}) — dernière synchro :{" "}
                 {formatLastSync(lastSync)}.
               </ThemedText>
-            </View>
+            </Animated.View>
           )}
         </View>
 
@@ -524,6 +554,7 @@ export default function HomeScreen() {
       </ScrollViewMarker>
 
       <AmbientBackground />
+      <StatusBarProgressiveBlur />
 
       {/* Feuille détail du cours */}
       <CourseDetailModal
@@ -588,7 +619,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    marginTop: 2,
+    overflow: "hidden",
   },
   headerActions: {
     flexDirection: "row",

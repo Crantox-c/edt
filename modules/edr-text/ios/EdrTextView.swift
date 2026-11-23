@@ -29,6 +29,13 @@ public final class EdrTextView: ExpoView {
     applyAppearance()
   }
 
+  override public func didMoveToWindow() {
+    super.didMoveToWindow()
+    if window != nil {
+      applyAppearance()
+    }
+  }
+
   override public func layoutSubviews() {
     super.layoutSubviews()
     label.frame = bounds
@@ -84,21 +91,25 @@ public final class EdrTextView: ExpoView {
     #if compiler(>=6.2)
     if #available(iOS 26.0, *) {
       if clampedExposure > 1.0 {
+        let screenHeadroom = window?.windowScene?.screen.potentialEDRHeadroom ?? 4.0
+        let effectiveExposure = max(clampedExposure, screenHeadroom)
         label.textColor = UIColor(
           red: r,
           green: g,
           blue: b,
           alpha: a,
-          linearExposure: clampedExposure
+          linearExposure: effectiveExposure
         )
         label.layer.preferredDynamicRange = .high
-        label.layer.contentsHeadroom = clampedExposure
+        label.layer.contentsHeadroom = effectiveExposure
         self.layer.preferredDynamicRange = .high
+        self.layer.contentsHeadroom = effectiveExposure
       } else {
         label.textColor = baseColor
         label.layer.preferredDynamicRange = .standard
         label.layer.contentsHeadroom = 1.0
         self.layer.preferredDynamicRange = .standard
+        self.layer.contentsHeadroom = 1.0
       }
     } else {
       label.textColor = baseColor
@@ -120,3 +131,48 @@ public final class EdrTextView: ExpoView {
     }
   }
 }
+
+#if compiler(>=6.2)
+@available(iOS 26.0, *)
+enum EdrWindowBooster {
+  @MainActor
+  static func boostAllWindows() {
+    for scene in UIApplication.shared.connectedScenes {
+      guard let windowScene = scene as? UIWindowScene else { continue }
+      let maxHeadroom = max(3.0, windowScene.screen.potentialEDRHeadroom)
+      for window in windowScene.windows {
+        window.layer.preferredDynamicRange = .high
+        boostHierarchy(in: window, headroom: maxHeadroom)
+      }
+    }
+  }
+
+  @MainActor
+  private static func boostHierarchy(in view: UIView, headroom: CGFloat) {
+    if view is UIVisualEffectView || view is EdrTextView {
+      boostLayerTree(view.layer, headroom: headroom)
+      if let parentLayer = view.superview?.layer {
+        parentLayer.preferredDynamicRange = .high
+        parentLayer.contentsHeadroom = max(parentLayer.contentsHeadroom, headroom)
+      }
+      if let effectView = view as? UIVisualEffectView {
+        boostLayerTree(effectView.contentView.layer, headroom: headroom)
+      }
+    }
+
+    for subview in view.subviews {
+      boostHierarchy(in: subview, headroom: headroom)
+    }
+  }
+
+  @MainActor
+  private static func boostLayerTree(_ layer: CALayer, headroom: CGFloat) {
+    layer.preferredDynamicRange = .high
+    layer.contentsHeadroom = max(layer.contentsHeadroom, headroom)
+    guard let sublayers = layer.sublayers else { return }
+    for sublayer in sublayers {
+      boostLayerTree(sublayer, headroom: headroom)
+    }
+  }
+}
+#endif

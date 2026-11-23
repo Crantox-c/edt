@@ -268,7 +268,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                 ? "EN COURS"
                 : row.isDS
                   ? "DS"
-                  : row.kind;
+                  : row.kind || null;
               const badgeBg = row.isActive
                 ? palette.liveSoft
                 : row.isDS
@@ -430,7 +430,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
         )}
 
         {/* Bandeau prochain DS */}
-        {props.nextDsSummary && (
+        {Boolean(props.nextDsSummary) && (
           <HStack
             alignment="center"
             spacing={6}

@@ -14,6 +14,16 @@ public final class EdrTextModule: Module {
       return false
     }
 
+    Function("boostGlassEdr") {
+      #if compiler(>=6.2)
+      if #available(iOS 26.0, *) {
+        Task { @MainActor in
+          EdrWindowBooster.boostAllWindows()
+        }
+      }
+      #endif
+    }
+
     View(EdrTextView.self) {
       Prop("text") { (view, text: String) in
         view.textValue = text
@@ -47,5 +57,7 @@ public final class EdrTextModule: Module {
         view.applyAppearance()
       }
     }
+
+    View(StatusBarEdgeBlurView.self) {}
   }
 }

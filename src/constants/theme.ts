@@ -9,19 +9,31 @@ export type TintName = "glacier" | "violet" | "corail" | "menthe" | "ambre";
 
 export type AccentPreset =
   | "glacier"
+  | "cyan"
+  | "bleu"
   | "indigo"
   | "violet"
-  | "menthe"
+  | "rose"
   | "corail"
-  | "ambre";
+  | "rubis"
+  | "mandarine"
+  | "ambre"
+  | "menthe"
+  | "titane";
 
 export const ACCENT_PRESETS: readonly { key: AccentPreset; label: string }[] = [
   { key: "glacier", label: "Glacier" },
+  { key: "cyan", label: "Turquoise" },
+  { key: "bleu", label: "Cobalt" },
   { key: "indigo", label: "Indigo" },
   { key: "violet", label: "Violet" },
-  { key: "menthe", label: "Émeraude" },
+  { key: "rose", label: "Fuchsia" },
   { key: "corail", label: "Corail" },
+  { key: "rubis", label: "Rubis" },
+  { key: "mandarine", label: "Mandarine" },
   { key: "ambre", label: "Ambre" },
+  { key: "menthe", label: "Émeraude" },
+  { key: "titane", label: "Titane" },
 ];
 
 export type Scale7 = {
@@ -289,6 +301,38 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(56, 189, 248, 0.34)",
     secondaryAccent: "#A78BFA",
   },
+  cyan: {
+    scale: {
+      50: "rgba(34, 211, 238, 0.10)",
+      100: "rgba(34, 211, 238, 0.20)",
+      300: "rgba(34, 211, 238, 0.40)",
+      500: "#22D3EE",
+      600: "#0E7490",
+      700: "#A5F3FC",
+      900: "#083344",
+    },
+    auroraPrimary: "rgba(34, 211, 238, 0.10)",
+    auroraSecondary: "rgba(56, 189, 248, 0.065)",
+    auroraTertiary: "rgba(6, 182, 212, 0.09)",
+    daySelectedGlow: "rgba(34, 211, 238, 0.34)",
+    secondaryAccent: "#38BDF8",
+  },
+  bleu: {
+    scale: {
+      50: "rgba(96, 165, 250, 0.10)",
+      100: "rgba(96, 165, 250, 0.20)",
+      300: "rgba(96, 165, 250, 0.40)",
+      500: "#60A5FA",
+      600: "#2563EB",
+      700: "#BFDBFE",
+      900: "#172554",
+    },
+    auroraPrimary: "rgba(59, 130, 246, 0.105)",
+    auroraSecondary: "rgba(129, 140, 248, 0.065)",
+    auroraTertiary: "rgba(96, 165, 250, 0.09)",
+    daySelectedGlow: "rgba(96, 165, 250, 0.35)",
+    secondaryAccent: "#818CF8",
+  },
   indigo: {
     scale: {
       50: "rgba(99, 102, 241, 0.11)",
@@ -321,21 +365,21 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(167, 139, 250, 0.35)",
     secondaryAccent: "#38BDF8",
   },
-  menthe: {
+  rose: {
     scale: {
-      50: "rgba(52, 211, 153, 0.10)",
-      100: "rgba(52, 211, 153, 0.20)",
-      300: "rgba(52, 211, 153, 0.40)",
-      500: "#34D399",
-      600: "#047857",
-      700: "#A7F3D0",
-      900: "#022C22",
+      50: "rgba(232, 121, 249, 0.10)",
+      100: "rgba(232, 121, 249, 0.20)",
+      300: "rgba(232, 121, 249, 0.40)",
+      500: "#E879F9",
+      600: "#A21CAF",
+      700: "#F5D0FE",
+      900: "#4A044E",
     },
-    auroraPrimary: "rgba(16, 185, 129, 0.095)",
-    auroraSecondary: "rgba(56, 189, 248, 0.06)",
-    auroraTertiary: "rgba(52, 211, 153, 0.085)",
-    daySelectedGlow: "rgba(52, 211, 153, 0.32)",
-    secondaryAccent: "#38BDF8",
+    auroraPrimary: "rgba(217, 70, 239, 0.10)",
+    auroraSecondary: "rgba(167, 139, 250, 0.065)",
+    auroraTertiary: "rgba(232, 121, 249, 0.085)",
+    daySelectedGlow: "rgba(232, 121, 249, 0.35)",
+    secondaryAccent: "#A78BFA",
   },
   corail: {
     scale: {
@@ -353,6 +397,38 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(251, 113, 133, 0.34)",
     secondaryAccent: "#A78BFA",
   },
+  rubis: {
+    scale: {
+      50: "rgba(248, 113, 113, 0.10)",
+      100: "rgba(248, 113, 113, 0.20)",
+      300: "rgba(248, 113, 113, 0.40)",
+      500: "#F87171",
+      600: "#DC2626",
+      700: "#FECACA",
+      900: "#450A0A",
+    },
+    auroraPrimary: "rgba(239, 68, 68, 0.095)",
+    auroraSecondary: "rgba(251, 146, 60, 0.06)",
+    auroraTertiary: "rgba(248, 113, 113, 0.085)",
+    daySelectedGlow: "rgba(248, 113, 113, 0.34)",
+    secondaryAccent: "#FB923C",
+  },
+  mandarine: {
+    scale: {
+      50: "rgba(251, 146, 60, 0.10)",
+      100: "rgba(251, 146, 60, 0.20)",
+      300: "rgba(251, 146, 60, 0.40)",
+      500: "#FB923C",
+      600: "#C2410C",
+      700: "#FED7AA",
+      900: "#431407",
+    },
+    auroraPrimary: "rgba(249, 115, 22, 0.095)",
+    auroraSecondary: "rgba(251, 191, 36, 0.06)",
+    auroraTertiary: "rgba(251, 146, 60, 0.085)",
+    daySelectedGlow: "rgba(251, 146, 60, 0.34)",
+    secondaryAccent: "#FBBF24",
+  },
   ambre: {
     scale: {
       50: "rgba(251, 191, 36, 0.10)",
@@ -369,6 +445,38 @@ const NUIT_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(251, 191, 36, 0.32)",
     secondaryAccent: "#38BDF8",
   },
+  menthe: {
+    scale: {
+      50: "rgba(52, 211, 153, 0.10)",
+      100: "rgba(52, 211, 153, 0.20)",
+      300: "rgba(52, 211, 153, 0.40)",
+      500: "#34D399",
+      600: "#047857",
+      700: "#A7F3D0",
+      900: "#022C22",
+    },
+    auroraPrimary: "rgba(16, 185, 129, 0.095)",
+    auroraSecondary: "rgba(56, 189, 248, 0.06)",
+    auroraTertiary: "rgba(52, 211, 153, 0.085)",
+    daySelectedGlow: "rgba(52, 211, 153, 0.32)",
+    secondaryAccent: "#38BDF8",
+  },
+  titane: {
+    scale: {
+      50: "rgba(226, 232, 240, 0.10)",
+      100: "rgba(226, 232, 240, 0.18)",
+      300: "rgba(226, 232, 240, 0.38)",
+      500: "#E2E8F0",
+      600: "#475569",
+      700: "#F8FAFC",
+      900: "#0F172A",
+    },
+    auroraPrimary: "rgba(226, 232, 240, 0.085)",
+    auroraSecondary: "rgba(148, 163, 184, 0.055)",
+    auroraTertiary: "rgba(226, 232, 240, 0.075)",
+    daySelectedGlow: "rgba(248, 250, 252, 0.32)",
+    secondaryAccent: "#94A3B8",
+  },
 };
 
 const CLAIR_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
@@ -379,6 +487,38 @@ const CLAIR_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     auroraTertiary: "rgba(14, 165, 233, 0.085)",
     daySelectedGlow: "rgba(2, 132, 199, 0.24)",
     secondaryAccent: "#7C3AED",
+  },
+  cyan: {
+    scale: {
+      50: "#ECFEFF",
+      100: "#CFFAFE",
+      300: "#67E8F9",
+      500: "#0891B2",
+      600: "#0E7490",
+      700: "#155E75",
+      900: "#164E63",
+    },
+    auroraPrimary: "rgba(8, 145, 178, 0.085)",
+    auroraSecondary: "rgba(2, 132, 199, 0.06)",
+    auroraTertiary: "rgba(8, 145, 178, 0.08)",
+    daySelectedGlow: "rgba(8, 145, 178, 0.24)",
+    secondaryAccent: "#0284C7",
+  },
+  bleu: {
+    scale: {
+      50: "#EFF6FF",
+      100: "#DBEAFE",
+      300: "#93C5FD",
+      500: "#2563EB",
+      600: "#1D4ED8",
+      700: "#1E40AF",
+      900: "#1E3A8A",
+    },
+    auroraPrimary: "rgba(37, 99, 235, 0.085)",
+    auroraSecondary: "rgba(79, 70, 229, 0.06)",
+    auroraTertiary: "rgba(37, 99, 235, 0.08)",
+    daySelectedGlow: "rgba(37, 99, 235, 0.24)",
+    secondaryAccent: "#4F46E5",
   },
   indigo: {
     scale: {
@@ -404,13 +544,21 @@ const CLAIR_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(124, 58, 237, 0.24)",
     secondaryAccent: "#0284C7",
   },
-  menthe: {
-    scale: clairThemeBase.menthe,
-    auroraPrimary: "rgba(5, 150, 105, 0.085)",
-    auroraSecondary: "rgba(14, 165, 233, 0.06)",
-    auroraTertiary: "rgba(5, 150, 105, 0.08)",
-    daySelectedGlow: "rgba(5, 150, 105, 0.24)",
-    secondaryAccent: "#0284C7",
+  rose: {
+    scale: {
+      50: "#FDF4FF",
+      100: "#FAE8FF",
+      300: "#F0ABFC",
+      500: "#C026D3",
+      600: "#A21CAF",
+      700: "#86198F",
+      900: "#701A75",
+    },
+    auroraPrimary: "rgba(192, 38, 211, 0.08)",
+    auroraSecondary: "rgba(124, 58, 237, 0.055)",
+    auroraTertiary: "rgba(192, 38, 211, 0.075)",
+    daySelectedGlow: "rgba(192, 38, 211, 0.24)",
+    secondaryAccent: "#7C3AED",
   },
   corail: {
     scale: clairThemeBase.corail,
@@ -420,6 +568,38 @@ const CLAIR_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(225, 29, 72, 0.24)",
     secondaryAccent: "#7C3AED",
   },
+  rubis: {
+    scale: {
+      50: "#FEF2F2",
+      100: "#FEE2E2",
+      300: "#FCA5A5",
+      500: "#EF4444",
+      600: "#B91C1C",
+      700: "#991B1B",
+      900: "#7F1D1D",
+    },
+    auroraPrimary: "rgba(220, 38, 38, 0.08)",
+    auroraSecondary: "rgba(234, 88, 12, 0.05)",
+    auroraTertiary: "rgba(220, 38, 38, 0.075)",
+    daySelectedGlow: "rgba(220, 38, 38, 0.24)",
+    secondaryAccent: "#EA580C",
+  },
+  mandarine: {
+    scale: {
+      50: "#FFF7ED",
+      100: "#FFEDD5",
+      300: "#FDBA74",
+      500: "#EA580C",
+      600: "#C2410C",
+      700: "#9A3412",
+      900: "#7C2D12",
+    },
+    auroraPrimary: "rgba(234, 88, 12, 0.08)",
+    auroraSecondary: "rgba(217, 119, 6, 0.05)",
+    auroraTertiary: "rgba(234, 88, 12, 0.075)",
+    daySelectedGlow: "rgba(234, 88, 12, 0.24)",
+    secondaryAccent: "#D97706",
+  },
   ambre: {
     scale: clairThemeBase.ambre,
     auroraPrimary: "rgba(217, 119, 6, 0.085)",
@@ -427,6 +607,30 @@ const CLAIR_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     auroraTertiary: "rgba(217, 119, 6, 0.08)",
     daySelectedGlow: "rgba(217, 119, 6, 0.24)",
     secondaryAccent: "#0284C7",
+  },
+  menthe: {
+    scale: clairThemeBase.menthe,
+    auroraPrimary: "rgba(5, 150, 105, 0.085)",
+    auroraSecondary: "rgba(14, 165, 233, 0.06)",
+    auroraTertiary: "rgba(5, 150, 105, 0.08)",
+    daySelectedGlow: "rgba(5, 150, 105, 0.24)",
+    secondaryAccent: "#0284C7",
+  },
+  titane: {
+    scale: {
+      50: "#F8FAFC",
+      100: "#F1F5F9",
+      300: "#CBD5E1",
+      500: "#475569",
+      600: "#334155",
+      700: "#1E293B",
+      900: "#0F172A",
+    },
+    auroraPrimary: "rgba(71, 85, 105, 0.08)",
+    auroraSecondary: "rgba(100, 116, 139, 0.05)",
+    auroraTertiary: "rgba(71, 85, 105, 0.07)",
+    daySelectedGlow: "rgba(51, 65, 85, 0.22)",
+    secondaryAccent: "#64748B",
   },
 };
 
@@ -446,6 +650,38 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     auroraTertiary: "rgba(14, 165, 233, 0.105)",
     daySelectedGlow: "rgba(56, 189, 248, 0.42)",
     secondaryAccent: "#A78BFA",
+  },
+  cyan: {
+    scale: {
+      50: "rgba(34, 211, 238, 0.08)",
+      100: "rgba(34, 211, 238, 0.16)",
+      300: "rgba(34, 211, 238, 0.34)",
+      500: "#22D3EE",
+      600: "#0E7490",
+      700: "#A5F3FC",
+      900: "#083344",
+    },
+    auroraPrimary: "rgba(34, 211, 238, 0.115)",
+    auroraSecondary: "rgba(56, 189, 248, 0.075)",
+    auroraTertiary: "rgba(6, 182, 212, 0.105)",
+    daySelectedGlow: "rgba(34, 211, 238, 0.42)",
+    secondaryAccent: "#38BDF8",
+  },
+  bleu: {
+    scale: {
+      50: "rgba(96, 165, 250, 0.08)",
+      100: "rgba(96, 165, 250, 0.16)",
+      300: "rgba(96, 165, 250, 0.34)",
+      500: "#60A5FA",
+      600: "#2563EB",
+      700: "#BFDBFE",
+      900: "#172554",
+    },
+    auroraPrimary: "rgba(59, 130, 246, 0.12)",
+    auroraSecondary: "rgba(129, 140, 248, 0.075)",
+    auroraTertiary: "rgba(96, 165, 250, 0.105)",
+    daySelectedGlow: "rgba(96, 165, 250, 0.42)",
+    secondaryAccent: "#818CF8",
   },
   indigo: {
     scale: {
@@ -479,21 +715,21 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(167, 139, 250, 0.42)",
     secondaryAccent: "#38BDF8",
   },
-  menthe: {
+  rose: {
     scale: {
-      50: "rgba(52, 211, 153, 0.08)",
-      100: "rgba(52, 211, 153, 0.16)",
-      300: "rgba(52, 211, 153, 0.34)",
-      500: "#34D399",
-      600: "#047857",
-      700: "#A7F3D0",
-      900: "#022C22",
+      50: "rgba(232, 121, 249, 0.08)",
+      100: "rgba(232, 121, 249, 0.16)",
+      300: "rgba(232, 121, 249, 0.34)",
+      500: "#E879F9",
+      600: "#A21CAF",
+      700: "#F5D0FE",
+      900: "#4A044E",
     },
-    auroraPrimary: "rgba(16, 185, 129, 0.11)",
-    auroraSecondary: "rgba(56, 189, 248, 0.07)",
-    auroraTertiary: "rgba(52, 211, 153, 0.10)",
-    daySelectedGlow: "rgba(52, 211, 153, 0.40)",
-    secondaryAccent: "#38BDF8",
+    auroraPrimary: "rgba(217, 70, 239, 0.115)",
+    auroraSecondary: "rgba(167, 139, 250, 0.075)",
+    auroraTertiary: "rgba(232, 121, 249, 0.10)",
+    daySelectedGlow: "rgba(232, 121, 249, 0.42)",
+    secondaryAccent: "#A78BFA",
   },
   corail: {
     scale: {
@@ -511,6 +747,38 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     daySelectedGlow: "rgba(251, 113, 133, 0.40)",
     secondaryAccent: "#A78BFA",
   },
+  rubis: {
+    scale: {
+      50: "rgba(248, 113, 113, 0.08)",
+      100: "rgba(248, 113, 113, 0.16)",
+      300: "rgba(248, 113, 113, 0.34)",
+      500: "#F87171",
+      600: "#DC2626",
+      700: "#FECACA",
+      900: "#450A0A",
+    },
+    auroraPrimary: "rgba(239, 68, 68, 0.115)",
+    auroraSecondary: "rgba(251, 146, 60, 0.07)",
+    auroraTertiary: "rgba(248, 113, 113, 0.10)",
+    daySelectedGlow: "rgba(248, 113, 113, 0.40)",
+    secondaryAccent: "#FB923C",
+  },
+  mandarine: {
+    scale: {
+      50: "rgba(251, 146, 60, 0.08)",
+      100: "rgba(251, 146, 60, 0.16)",
+      300: "rgba(251, 146, 60, 0.34)",
+      500: "#FB923C",
+      600: "#C2410C",
+      700: "#FED7AA",
+      900: "#431407",
+    },
+    auroraPrimary: "rgba(249, 115, 22, 0.115)",
+    auroraSecondary: "rgba(251, 191, 36, 0.07)",
+    auroraTertiary: "rgba(251, 146, 60, 0.10)",
+    daySelectedGlow: "rgba(251, 146, 60, 0.40)",
+    secondaryAccent: "#FBBF24",
+  },
   ambre: {
     scale: {
       50: "rgba(251, 191, 36, 0.08)",
@@ -526,6 +794,38 @@ const OLED_ACCENT_DEFS: Record<AccentPreset, AccentDefinition> = {
     auroraTertiary: "rgba(251, 191, 36, 0.095)",
     daySelectedGlow: "rgba(251, 191, 36, 0.40)",
     secondaryAccent: "#38BDF8",
+  },
+  menthe: {
+    scale: {
+      50: "rgba(52, 211, 153, 0.08)",
+      100: "rgba(52, 211, 153, 0.16)",
+      300: "rgba(52, 211, 153, 0.34)",
+      500: "#34D399",
+      600: "#047857",
+      700: "#A7F3D0",
+      900: "#022C22",
+    },
+    auroraPrimary: "rgba(16, 185, 129, 0.11)",
+    auroraSecondary: "rgba(56, 189, 248, 0.07)",
+    auroraTertiary: "rgba(52, 211, 153, 0.10)",
+    daySelectedGlow: "rgba(52, 211, 153, 0.40)",
+    secondaryAccent: "#38BDF8",
+  },
+  titane: {
+    scale: {
+      50: "rgba(226, 232, 240, 0.08)",
+      100: "rgba(226, 232, 240, 0.16)",
+      300: "rgba(226, 232, 240, 0.34)",
+      500: "#E2E8F0",
+      600: "#475569",
+      700: "#F8FAFC",
+      900: "#0F172A",
+    },
+    auroraPrimary: "rgba(226, 232, 240, 0.095)",
+    auroraSecondary: "rgba(148, 163, 184, 0.06)",
+    auroraTertiary: "rgba(226, 232, 240, 0.085)",
+    daySelectedGlow: "rgba(248, 250, 252, 0.38)",
+    secondaryAccent: "#94A3B8",
   },
 };
 

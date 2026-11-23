@@ -22,6 +22,7 @@ import { ThemedText } from "@/components/themed-text";
 import { AmbientBackground } from "@/components/ui/ambient-background";
 import { GlassButton } from "@/components/ui/glass-button";
 import { GlassSurfaceContainer } from "@/components/ui/glass-surface";
+import { StatusBarProgressiveBlur } from "@/components/ui/status-bar-blur";
 import {
   FontFamilies,
   MaxContentWidth,
@@ -953,6 +954,7 @@ export default function SettingsScreen() {
       </ScrollViewMarker>
 
       <AmbientBackground />
+      <StatusBarProgressiveBlur />
     </View>
   );
 }

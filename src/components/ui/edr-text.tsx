@@ -11,6 +11,7 @@ import { ThemedText } from "@/components/themed-text";
 
 type EdrTextNativeModule = {
   isEdrAvailable?: boolean;
+  boostGlassEdr?: () => void;
 };
 
 type NativeEdrTextProps = {
@@ -24,15 +25,27 @@ type NativeEdrTextProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-function resolveNativeEdrTextView(): ComponentType<NativeEdrTextProps> | null {
+let boostTimer: ReturnType<typeof setTimeout> | null = null;
+
+function resolveNativeEdrModule(): EdrTextNativeModule | null {
   if (Platform.OS !== "ios") {
     return null;
   }
   try {
     const mod = requireOptionalNativeModule<EdrTextNativeModule>("EdrText");
-    if (!mod?.isEdrAvailable) {
-      return null;
-    }
+    return mod?.isEdrAvailable ? mod : null;
+  } catch {
+    return null;
+  }
+}
+
+const NativeEdrModule = resolveNativeEdrModule();
+
+function resolveNativeEdrTextView(): ComponentType<NativeEdrTextProps> | null {
+  if (!NativeEdrModule) {
+    return null;
+  }
+  try {
     return requireNativeView<NativeEdrTextProps>("EdrText", "EdrTextView");
   } catch {
     return null;
@@ -47,6 +60,27 @@ const NativeEdrText = resolveNativeEdrTextView();
  */
 export function isEdrTextAvailable(): boolean {
   return NativeEdrText !== null;
+}
+
+/**
+ * Débloque la plage dynamique matérielle maximale (EDR `.high`) sur les surfaces
+ * Liquid Glass et vues EDR actives d'iOS 26 (regroupement anti-rafale à 60 ms).
+ */
+export function boostLiquidGlassEdr(): void {
+  if (Platform.OS !== "ios" || !NativeEdrModule?.boostGlassEdr) {
+    return;
+  }
+  if (boostTimer !== null) {
+    clearTimeout(boostTimer);
+  }
+  boostTimer = setTimeout(() => {
+    boostTimer = null;
+    try {
+      NativeEdrModule.boostGlassEdr?.();
+    } catch {
+      // Ignorer si la scène UIKit est en transition
+    }
+  }, 60);
 }
 
 export type EdrTextProps = {

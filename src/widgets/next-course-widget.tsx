@@ -176,7 +176,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
     const palette = isLight ? props.paletteLight : props.paletteDark;
     const isTinted = environment?.widgetRenderingMode === "accented";
 
-    const course = props.course;
+    const course = props.course ?? null;
     const isActive = props.status === "active" && course != null;
     const courseAccent = course
       ? isLight

@@ -71,7 +71,11 @@ export function AccentSwitcher() {
                       }}
                       size={14}
                       weight="bold"
-                      tintColor={theme.textOnAccent}
+                      tintColor={
+                        preset.key === "titane" && theme.isDark
+                          ? theme.background
+                          : theme.textOnAccent
+                      }
                     />
                   )}
                 </View>
@@ -83,6 +87,8 @@ export function AccentSwitcher() {
                   color: isSelected ? previewScale[700] : theme.textSecondary,
                 }}
                 numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
               >
                 {preset.label}
               </ThemedText>
@@ -162,13 +168,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: Spacing.one + 2,
+    rowGap: Spacing.two + 2,
+    columnGap: Spacing.one + 2,
   },
   presetItem: {
     alignItems: "center",
     gap: 5,
-    minWidth: 50,
-    flex: 1,
+    width: "23%",
   },
   swatchRing: {
     width: 40,
