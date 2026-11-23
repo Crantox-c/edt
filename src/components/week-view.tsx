@@ -7,6 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SymbolView } from "expo-symbols";
 import { ThemedText } from "@/components/themed-text";
 import { GlassButton } from "@/components/ui/glass-button";
@@ -52,6 +53,10 @@ import {
 import { CourseCard } from "./course-card";
 
 type WeekDisplayMode = "grid" | "agenda";
+
+const WEEK_DISPLAY_MODE_KEY = "app:week_display_mode_v1";
+let cachedWeekDisplayMode: WeekDisplayMode = "grid";
+let hasHydratedDisplayMode = false;
 
 const HOUR_HEIGHT = 68;
 const TIME_RAIL_WIDTH = 44;
@@ -155,8 +160,27 @@ export function WeekView({
   const nowMs = useCurrentTime();
   const todayStr = getTodayParisDateString();
   const thisWeekMonday = getMondayOfWeek(todayStr);
-  const [displayMode, setDisplayMode] = useState<WeekDisplayMode>("grid");
+  const [displayMode, setDisplayMode] = useState<WeekDisplayMode>(cachedWeekDisplayMode);
   const hScrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
+
+  useEffect(() => {
+    if (hasHydratedDisplayMode) return;
+    let mounted = true;
+    AsyncStorage.getItem(WEEK_DISPLAY_MODE_KEY)
+      .then((saved) => {
+        hasHydratedDisplayMode = true;
+        if (saved === "grid" || saved === "agenda") {
+          cachedWeekDisplayMode = saved;
+          if (mounted) setDisplayMode(saved);
+        }
+      })
+      .catch(() => {
+        hasHydratedDisplayMode = true;
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const subjectDict = useSyncExternalStore(
     subscribeSubjectDictionary,
@@ -303,7 +327,11 @@ export function WeekView({
 
   const handleToggleDisplayMode = () => {
     haptics.selection();
-    setDisplayMode((prev) => (prev === "grid" ? "agenda" : "grid"));
+    const next: WeekDisplayMode = displayMode === "grid" ? "agenda" : "grid";
+    cachedWeekDisplayMode = next;
+    hasHydratedDisplayMode = true;
+    AsyncStorage.setItem(WEEK_DISPLAY_MODE_KEY, next).catch(() => {});
+    setDisplayMode(next);
   };
 
   return (

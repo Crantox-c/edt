@@ -97,6 +97,21 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const loadedMondaysRef = useRef<Set<string>>(new Set());
   const inFlightMondaysRef = useRef<Set<string>>(new Set());
   const pendingWeekRef = useRef<string | null>(null);
+  const latestWidgetInputsRef = useRef({
+    courses,
+    lastSync,
+    accentPreset,
+    isOled,
+  });
+
+  useEffect(() => {
+    latestWidgetInputsRef.current = {
+      courses,
+      lastSync,
+      accentPreset,
+      isOled,
+    };
+  }, [courses, lastSync, accentPreset, isOled]);
 
   const subjectDict = useSyncExternalStore(
     subscribeSubjectDictionary,
@@ -277,7 +292,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     };
   }, [syncGroup]);
 
-  // 2. Au retour au premier plan (Foreground / Active)
+  // 2. Au retour au premier plan (Foreground / Active) & au passage en arrière-plan (Background)
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
@@ -289,6 +304,16 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
             notifyHaptics: false,
             refreshGroupList: false,
           });
+        } else if (nextState === "background" && initializedRef.current) {
+          const snapshot = latestWidgetInputsRef.current;
+          if (snapshot.courses.length > 0 || snapshot.lastSync !== null) {
+            void syncWidgetsFromSchedule(
+              snapshot.courses,
+              snapshot.lastSync,
+              snapshot.accentPreset,
+              snapshot.isOled
+            );
+          }
         }
       }
     );

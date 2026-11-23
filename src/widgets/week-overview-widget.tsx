@@ -32,6 +32,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
   (props: WeekOverviewWidgetProps, environment: WidgetEnvironment) => {
     "widget";
 
+    const fallbackDiag = (props as { __diag?: string } | undefined)?.__diag;
     if (!props?.paletteDark || !props?.paletteLight) {
       return (
         <VStack
@@ -72,6 +73,17 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
           >
             Ouvrez l&apos;app pour synchroniser votre emploi du temps
           </Text>
+          {Boolean(fallbackDiag) && (
+            <Text
+              modifiers={[
+                font({ size: 8, weight: "medium", design: "monospaced" }),
+                lineLimit(2),
+                foregroundStyle({ type: "hierarchical", style: "tertiary" }),
+              ]}
+            >
+              {fallbackDiag}
+            </Text>
+          )}
           <Spacer minLength={0} />
         </VStack>
       );

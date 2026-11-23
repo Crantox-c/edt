@@ -25,6 +25,7 @@ export type WidgetSyncStatus = {
 };
 
 let widgetsPromise: Promise<LoadedWidgets> | null = null;
+let syncQueue: Promise<boolean> = Promise.resolve(false);
 let widgetSyncStatus: WidgetSyncStatus = {
   lastSyncAt: null,
   entryCount: 0,
@@ -88,10 +89,10 @@ async function loadWidgets(): Promise<LoadedWidgets> {
 }
 
 /**
- * Calcule la timeline hors-ligne depuis le cache local GEII, pousse les entrées
- * vers les 3 widgets WidgetKit iOS et vérifie l'accès au conteneur App Group partagé.
+ * Exécute la synchronisation WidgetKit iOS en calculant les timelines hors-ligne
+ * et en vérifiant l'accès au conteneur App Group partagé.
  */
-export async function syncWidgetsFromSchedule(
+async function performSyncWidgetsFromSchedule(
   courses: Course[],
   lastSync: number | null,
   accentPreset: AccentPreset,
@@ -170,4 +171,28 @@ export async function syncWidgetsFromSchedule(
     notifyWidgetSyncListeners();
     return false;
   }
+}
+
+/**
+ * Calcule la timeline hors-ligne depuis le cache local GEII et pousse les entrées
+ * vers les 3 widgets WidgetKit iOS, en sérialisant les appels concurrents.
+ */
+export function syncWidgetsFromSchedule(
+  courses: Course[],
+  lastSync: number | null,
+  accentPreset: AccentPreset,
+  useOledDark = false
+): Promise<boolean> {
+  const nextRun = syncQueue
+    .catch(() => false)
+    .then(() =>
+      performSyncWidgetsFromSchedule(
+        courses,
+        lastSync,
+        accentPreset,
+        useOledDark
+      )
+    );
+  syncQueue = nextRun;
+  return nextRun;
 }

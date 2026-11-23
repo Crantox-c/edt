@@ -35,6 +35,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
     "widget";
 
     const family = environment?.widgetFamily ?? "systemSmall";
+    const fallbackDiag = (props as { __diag?: string } | undefined)?.__diag;
     if (!props?.paletteDark || !props?.paletteLight) {
       if (family === "accessoryInline") {
         return (
@@ -167,6 +168,17 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           >
             Ouvrez l&apos;app pour synchroniser
           </Text>
+          {Boolean(fallbackDiag) && (
+            <Text
+              modifiers={[
+                font({ size: 8, weight: "medium", design: "monospaced" }),
+                lineLimit(2),
+                foregroundStyle({ type: "hierarchical", style: "tertiary" }),
+              ]}
+            >
+              {fallbackDiag}
+            </Text>
+          )}
           <Spacer minLength={0} />
         </VStack>
       );
