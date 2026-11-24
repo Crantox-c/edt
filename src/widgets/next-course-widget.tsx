@@ -47,7 +47,9 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
             ]}
           >
             <Image systemName="calendar" />
-            <Text modifiers={[lineLimit(1)]}>GEII EDT · Ouvrir l&apos;app</Text>
+            <Text modifiers={[font({ design: "rounded" }), lineLimit(1)]}>
+              GEII EDT · Ouvrir l&apos;app
+            </Text>
           </HStack>
         );
       }
@@ -64,7 +66,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
             <VStack alignment="center" spacing={1}>
               <Text
                 modifiers={[
-                  font({ size: 11, weight: "bold", design: "rounded" }),
+                  font({ size: 12, weight: "bold", design: "rounded" }),
                   lineLimit(1),
                   foregroundStyle({ type: "hierarchical", style: "primary" }),
                 ]}
@@ -73,7 +75,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               </Text>
               <Text
                 modifiers={[
-                  font({ size: 8, weight: "semibold", design: "rounded" }),
+                  font({ size: 9, weight: "semibold", design: "rounded" }),
                   lineLimit(1),
                   foregroundStyle({ type: "hierarchical", style: "secondary" }),
                 ]}
@@ -101,7 +103,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           >
             <Text
               modifiers={[
-                font({ size: 12, weight: "bold", design: "rounded" }),
+                font({ size: 13, weight: "bold", design: "rounded" }),
                 lineLimit(1),
                 foregroundStyle({ type: "hierarchical", style: "primary" }),
               ]}
@@ -110,7 +112,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
             </Text>
             <Text
               modifiers={[
-                font({ size: 11, weight: "medium" }),
+                font({ size: 11.5, weight: "medium", design: "rounded" }),
                 lineLimit(2),
                 foregroundStyle({ type: "hierarchical", style: "secondary" }),
               ]}
@@ -138,10 +140,10 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           ]}
         >
           <HStack alignment="center" spacing={5}>
-            <Image systemName="calendar" size={13} />
+            <Image systemName="calendar" size={14} />
             <Text
               modifiers={[
-                font({ size: 12, weight: "bold", design: "rounded" }),
+                font({ size: 12.5, weight: "bold", design: "rounded" }),
                 lineLimit(1),
                 foregroundStyle({ type: "hierarchical", style: "secondary" }),
               ]}
@@ -152,7 +154,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           <Spacer minLength={2} />
           <Text
             modifiers={[
-              font({ size: 14, weight: "bold", design: "rounded" }),
+              font({ size: 15.5, weight: "bold", design: "rounded" }),
               lineLimit(2),
               foregroundStyle({ type: "hierarchical", style: "primary" }),
             ]}
@@ -161,7 +163,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           </Text>
           <Text
             modifiers={[
-              font({ size: 11, weight: "medium" }),
+              font({ size: 12, weight: "medium", design: "rounded" }),
               lineLimit(2),
               foregroundStyle({ type: "hierarchical", style: "secondary" }),
             ]}
@@ -171,7 +173,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           {Boolean(fallbackDiag) && (
             <Text
               modifiers={[
-                font({ size: 8, weight: "medium", design: "monospaced" }),
+                font({ size: 8.5, weight: "medium", design: "rounded" }),
                 lineLimit(2),
                 foregroundStyle({ type: "hierarchical", style: "tertiary" }),
               ]}
@@ -200,8 +202,8 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
     if (family === "accessoryInline") {
       if (course) {
         const inlineText = isActive
-          ? `${course.subject} · fin ${course.endLabel} · ${course.compactRoom} · ${props.updatedShortLabel}`
-          : `${course.subject} · ${course.startLabel} · ${course.compactRoom} · ${props.updatedShortLabel}`;
+          ? `${course.subject} · fin ${course.endLabel} · ${course.compactRoom}`
+          : `${course.subject} · ${course.startLabel} · ${course.compactRoom}`;
         return (
           <HStack
             spacing={4}
@@ -219,7 +221,15 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                     : "clock.fill"
               }
             />
-            <Text modifiers={[lineLimit(1)]}>{inlineText}</Text>
+            <Text
+              modifiers={[
+                font({ design: "rounded" }),
+                monospacedDigit(),
+                lineLimit(1),
+              ]}
+            >
+              {inlineText}
+            </Text>
           </HStack>
         );
       }
@@ -233,8 +243,14 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           ]}
         >
           <Image systemName="checkmark.circle.fill" />
-          <Text modifiers={[lineLimit(1)]}>
-            {`Aucun cours · ${props.updatedShortLabel}`}
+          <Text
+            modifiers={[
+              font({ design: "rounded" }),
+              monospacedDigit(),
+              lineLimit(1),
+            ]}
+          >
+            Aucun cours à venir
           </Text>
         </HStack>
       );
@@ -252,7 +268,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               <VStack alignment="center" spacing={0}>
                 <Text
                   modifiers={[
-                    font({ size: 11, weight: "bold", design: "rounded" }),
+                    font({ size: 12, weight: "bold", design: "rounded" }),
                     lineLimit(1),
                     minimumScaleFactor(0.6),
                   ]}
@@ -261,7 +277,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                 </Text>
                 <Text
                   modifiers={[
-                    font({ size: 7, weight: "semibold", design: "monospaced" }),
+                    font({ size: 9.5, weight: "semibold", design: "rounded" }),
                     monospacedDigit(),
                     lineLimit(1),
                     foregroundStyle({
@@ -270,7 +286,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                     }),
                   ]}
                 >
-                  {props.updatedShortLabel}
+                  {course.endLabel}
                 </Text>
               </VStack>
             }
@@ -296,12 +312,12 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
         >
           <AccessoryWidgetBackground />
           {course ? (
-            <VStack alignment="center" spacing={1}>
+            <VStack alignment="center" spacing={1.5}>
               <Text
                 modifiers={[
-                  font({ size: 11, weight: "bold", design: "rounded" }),
+                  font({ size: 13, weight: "bold", design: "rounded" }),
                   lineLimit(1),
-                  minimumScaleFactor(0.65),
+                  minimumScaleFactor(0.62),
                   foregroundStyle({ type: "hierarchical", style: "primary" }),
                 ]}
               >
@@ -309,45 +325,26 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               </Text>
               <Text
                 modifiers={[
-                  font({ size: 10, weight: "semibold", design: "monospaced" }),
+                  font({ size: 12, weight: "bold", design: "rounded" }),
                   monospacedDigit(),
                   lineLimit(1),
+                  minimumScaleFactor(0.75),
                   foregroundStyle({ type: "hierarchical", style: "primary" }),
                 ]}
               >
                 {course.startLabel}
               </Text>
-              <Text
-                modifiers={[
-                  font({ size: 7, weight: "medium", design: "monospaced" }),
-                  monospacedDigit(),
-                  lineLimit(1),
-                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
-                ]}
-              >
-                {props.updatedShortLabel}
-              </Text>
             </VStack>
           ) : (
-            <VStack alignment="center" spacing={1}>
-              <Image systemName="checkmark.circle.fill" size={14} />
+            <VStack alignment="center" spacing={2}>
+              <Image systemName="checkmark.circle.fill" size={17} />
               <Text
                 modifiers={[
-                  font({ size: 9, weight: "bold", design: "rounded" }),
+                  font({ size: 11, weight: "bold", design: "rounded" }),
                   lineLimit(1),
                 ]}
               >
                 Libre
-              </Text>
-              <Text
-                modifiers={[
-                  font({ size: 7, weight: "medium", design: "monospaced" }),
-                  monospacedDigit(),
-                  lineLimit(1),
-                  foregroundStyle({ type: "hierarchical", style: "secondary" }),
-                ]}
-              >
-                {props.updatedShortLabel}
               </Text>
             </VStack>
           )}
@@ -366,7 +363,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
       return (
         <VStack
           alignment="leading"
-          spacing={2}
+          spacing={2.5}
           modifiers={[
             frame({
               maxWidth: Infinity,
@@ -380,7 +377,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           <HStack alignment="center" spacing={4}>
             <Text
               modifiers={[
-                font({ size: 10, weight: "bold", design: "rounded" }),
+                font({ size: 11, weight: "bold", design: "rounded" }),
                 lineLimit(1),
                 foregroundStyle({ type: "hierarchical", style: "secondary" }),
               ]}
@@ -388,25 +385,32 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               {headerLabel}
             </Text>
             <Spacer />
-            <Text
-              modifiers={[
-                font({ size: 9, weight: "medium", design: "monospaced" }),
-                monospacedDigit(),
-                lineLimit(1),
-                foregroundStyle({ type: "hierarchical", style: "secondary" }),
-              ]}
-            >
-              {props.updatedShortLabel}
-            </Text>
+            {course && (
+              <Text
+                modifiers={[
+                  font({ size: 10.5, weight: "semibold", design: "rounded" }),
+                  monospacedDigit(),
+                  lineLimit(1),
+                  foregroundStyle({
+                    type: "hierarchical",
+                    style: "secondary",
+                  }),
+                ]}
+              >
+                {isActive
+                  ? `→ ${course.endLabel}`
+                  : `${course.startLabel}–${course.endLabel}`}
+              </Text>
+            )}
           </HStack>
 
           {course ? (
             <>
               <Text
                 modifiers={[
-                  font({ size: 14, weight: "bold", design: "rounded" }),
+                  font({ size: 15, weight: "bold", design: "rounded" }),
                   lineLimit(1),
-                  minimumScaleFactor(0.8),
+                  minimumScaleFactor(0.78),
                   foregroundStyle({ type: "hierarchical", style: "primary" }),
                 ]}
               >
@@ -423,9 +427,9 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                     countsDown={true}
                     modifiers={[
                       font({
-                        size: 11,
-                        weight: "semibold",
-                        design: "monospaced",
+                        size: 12,
+                        weight: "bold",
+                        design: "rounded",
                       }),
                       monospacedDigit(),
                       lineLimit(1),
@@ -437,9 +441,9 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                   />
                   <Text
                     modifiers={[
-                      font({ size: 11, weight: "medium" }),
+                      font({ size: 11.5, weight: "medium", design: "rounded" }),
                       lineLimit(1),
-                      minimumScaleFactor(0.75),
+                      minimumScaleFactor(0.76),
                       foregroundStyle({
                         type: "hierarchical",
                         style: "secondary",
@@ -452,17 +456,17 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               ) : (
                 <Text
                   modifiers={[
-                    font({ size: 11, weight: "medium", design: "monospaced" }),
+                    font({ size: 12, weight: "medium", design: "rounded" }),
                     monospacedDigit(),
                     lineLimit(1),
-                    minimumScaleFactor(0.75),
+                    minimumScaleFactor(0.76),
                     foregroundStyle({
                       type: "hierarchical",
                       style: "secondary",
                     }),
                   ]}
                 >
-                  {`${course.startLabel}–${course.endLabel} · ${course.compactRoom}${course.teacher ? ` · ${course.teacher}` : ""}`}
+                  {`${course.compactRoom}${course.teacher ? ` · ${course.teacher}` : ""}`}
                 </Text>
               )}
             </>
@@ -470,7 +474,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
             <>
               <Text
                 modifiers={[
-                  font({ size: 13, weight: "bold", design: "rounded" }),
+                  font({ size: 14, weight: "bold", design: "rounded" }),
                   lineLimit(1),
                   foregroundStyle({ type: "hierarchical", style: "primary" }),
                 ]}
@@ -479,12 +483,12 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               </Text>
               <Text
                 modifiers={[
-                  font({ size: 11, weight: "medium" }),
+                  font({ size: 11.5, weight: "medium", design: "rounded" }),
                   lineLimit(1),
                   foregroundStyle({ type: "hierarchical", style: "secondary" }),
                 ]}
               >
-                Emploi du temps à jour
+                {props.dayContext}
               </Text>
             </>
           )}
@@ -522,7 +526,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
     return (
       <VStack
         alignment="leading"
-        spacing={4}
+        spacing={5}
         modifiers={[
           frame({
             maxWidth: Infinity,
@@ -544,7 +548,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
         <HStack alignment="center" spacing={4}>
           <Text
             modifiers={[
-              font({ size: 10, weight: "bold", design: "rounded" }),
+              font({ size: 10.5, weight: "bold", design: "rounded" }),
               lineLimit(1),
               minimumScaleFactor(0.8),
               foregroundStyle(
@@ -552,7 +556,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                   ? { type: "hierarchical", style: "primary" }
                   : statusTextColor
               ),
-              padding({ horizontal: 7, vertical: 3 }),
+              padding({ horizontal: 8, vertical: 3.5 }),
               background(
                 statusBgColor,
                 shapes.capsule({ roundedCornerStyle: "continuous" })
@@ -565,7 +569,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           {course && (
             <Text
               modifiers={[
-                font({ size: 11, weight: "semibold", design: "monospaced" }),
+                font({ size: 12.5, weight: "bold", design: "rounded" }),
                 monospacedDigit(),
                 lineLimit(1),
                 foregroundStyle(
@@ -584,9 +588,9 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
           <>
             <Text
               modifiers={[
-                font({ size: 15, weight: "bold", design: "rounded" }),
+                font({ size: 17, weight: "bold", design: "rounded" }),
                 lineLimit(2),
-                minimumScaleFactor(0.8),
+                minimumScaleFactor(0.78),
                 foregroundStyle(
                   isTinted
                     ? { type: "hierarchical", style: "primary" }
@@ -597,38 +601,16 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               {course.title}
             </Text>
 
-            <HStack alignment="center" spacing={4}>
-              <Image
-                systemName="mappin.and.ellipse"
-                size={10}
-                color={palette.textSecondary}
-              />
-              <Text
-                modifiers={[
-                  font({ size: 11, weight: "medium" }),
-                  lineLimit(1),
-                  minimumScaleFactor(0.82),
-                  foregroundStyle(
-                    isTinted
-                      ? { type: "hierarchical", style: "secondary" }
-                      : palette.textSecondary
-                  ),
-                ]}
-              >
-                {course.room}
-              </Text>
-            </HStack>
-
-            {Boolean(course.teacher) && (
+            <VStack alignment="leading" spacing={3}>
               <HStack alignment="center" spacing={4}>
                 <Image
-                  systemName="person.fill"
-                  size={9.5}
+                  systemName="mappin.and.ellipse"
+                  size={11}
                   color={palette.textSecondary}
                 />
                 <Text
                   modifiers={[
-                    font({ size: 10.5, weight: "medium" }),
+                    font({ size: 12, weight: "medium", design: "rounded" }),
                     lineLimit(1),
                     minimumScaleFactor(0.8),
                     foregroundStyle(
@@ -638,12 +620,36 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                     ),
                   ]}
                 >
-                  {course.teacher}
+                  {course.room}
                 </Text>
               </HStack>
-            )}
 
-            <Spacer minLength={1} />
+              {Boolean(course.teacher) && (
+                <HStack alignment="center" spacing={4}>
+                  <Image
+                    systemName="person.fill"
+                    size={10.5}
+                    color={palette.textSecondary}
+                  />
+                  <Text
+                    modifiers={[
+                      font({ size: 11.5, weight: "medium", design: "rounded" }),
+                      lineLimit(1),
+                      minimumScaleFactor(0.78),
+                      foregroundStyle(
+                        isTinted
+                          ? { type: "hierarchical", style: "secondary" }
+                          : palette.textSecondary
+                      ),
+                    ]}
+                  >
+                    {course.teacher}
+                  </Text>
+                </HStack>
+              )}
+            </VStack>
+
+            <Spacer minLength={2} />
 
             {isActive ? (
               <VStack alignment="leading" spacing={4}>
@@ -670,9 +676,9 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                       countsDown={true}
                       modifiers={[
                         font({
-                          size: 11,
+                          size: 13.5,
                           weight: "bold",
-                          design: "monospaced",
+                          design: "rounded",
                         }),
                         monospacedDigit(),
                         lineLimit(1),
@@ -682,7 +688,8 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                   ) : (
                     <Text
                       modifiers={[
-                        font({ size: 11, weight: "bold", design: "rounded" }),
+                        font({ size: 13, weight: "bold", design: "rounded" }),
+                        monospacedDigit(),
                         lineLimit(1),
                         foregroundStyle(palette.liveAccent),
                       ]}
@@ -694,9 +701,9 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                   <Text
                     modifiers={[
                       font({
-                        size: 10,
-                        weight: "medium",
-                        design: "monospaced",
+                        size: 11.5,
+                        weight: "semibold",
+                        design: "rounded",
                       }),
                       monospacedDigit(),
                       lineLimit(1),
@@ -708,18 +715,22 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                 </HStack>
               </VStack>
             ) : (
-              <VStack alignment="leading" spacing={2}>
+              <VStack alignment="leading" spacing={2.5}>
                 <HStack alignment="center" spacing={4}>
                   <Image
                     systemName={canLiveStartTimer ? "timer" : "clock"}
-                    size={10}
+                    size={11.5}
                     color={courseAccent}
                   />
                   {canLiveStartTimer ? (
                     <>
                       <Text
                         modifiers={[
-                          font({ size: 11, weight: "semibold" }),
+                          font({
+                            size: 12.5,
+                            weight: "semibold",
+                            design: "rounded",
+                          }),
                           foregroundStyle(courseAccent),
                         ]}
                       >
@@ -733,9 +744,9 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                         countsDown={true}
                         modifiers={[
                           font({
-                            size: 11,
+                            size: 13.5,
                             weight: "bold",
-                            design: "monospaced",
+                            design: "rounded",
                           }),
                           monospacedDigit(),
                           lineLimit(1),
@@ -746,7 +757,12 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                   ) : (
                     <Text
                       modifiers={[
-                        font({ size: 11, weight: "semibold", design: "rounded" }),
+                        font({
+                          size: 12.5,
+                          weight: "semibold",
+                          design: "rounded",
+                        }),
+                        monospacedDigit(),
                         lineLimit(1),
                         minimumScaleFactor(0.85),
                         foregroundStyle(courseAccent),
@@ -758,7 +774,11 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
                 </HStack>
                 <Text
                   modifiers={[
-                    font({ size: 10, weight: "medium", design: "monospaced" }),
+                    font({
+                      size: 11.5,
+                      weight: "semibold",
+                      design: "rounded",
+                    }),
                     monospacedDigit(),
                     lineLimit(1),
                     foregroundStyle(palette.textMuted),
@@ -772,11 +792,11 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
         ) : (
           <>
             <Spacer minLength={2} />
-            <VStack alignment="leading" spacing={4}>
-              <Image systemName="sun.max.fill" size={22} color={palette.accent} />
+            <VStack alignment="leading" spacing={5}>
+              <Image systemName="sun.max.fill" size={26} color={palette.accent} />
               <Text
                 modifiers={[
-                  font({ size: 13, weight: "bold", design: "rounded" }),
+                  font({ size: 15, weight: "bold", design: "rounded" }),
                   lineLimit(2),
                   foregroundStyle(palette.textPrimary),
                 ]}
@@ -785,7 +805,7 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
               </Text>
               <Text
                 modifiers={[
-                  font({ size: 11, weight: "medium" }),
+                  font({ size: 12, weight: "medium", design: "rounded" }),
                   lineLimit(1),
                   foregroundStyle(palette.textSecondary),
                 ]}
@@ -796,17 +816,6 @@ const NextCourseWidget = createWidget<NextCourseWidgetProps>(
             <Spacer minLength={2} />
           </>
         )}
-
-        <Text
-          modifiers={[
-            font({ size: 9, weight: "medium", design: "monospaced" }),
-            monospacedDigit(),
-            lineLimit(1),
-            foregroundStyle(palette.textMuted),
-          ]}
-        >
-          {props.updatedAtLabel}
-        </Text>
       </VStack>
     );
   }

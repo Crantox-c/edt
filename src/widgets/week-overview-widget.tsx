@@ -55,7 +55,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
             <Image systemName="calendar.badge.clock" size={15} />
             <Text
               modifiers={[
-                font({ size: 14, weight: "bold", design: "rounded" }),
+                font({ size: 15, weight: "bold", design: "rounded" }),
                 lineLimit(1),
                 foregroundStyle({ type: "hierarchical", style: "primary" }),
               ]}
@@ -66,7 +66,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
           <Spacer minLength={2} />
           <Text
             modifiers={[
-              font({ size: 12, weight: "medium" }),
+              font({ size: 12.5, weight: "medium", design: "rounded" }),
               lineLimit(2),
               foregroundStyle({ type: "hierarchical", style: "secondary" }),
             ]}
@@ -76,7 +76,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
           {Boolean(fallbackDiag) && (
             <Text
               modifiers={[
-                font({ size: 8, weight: "medium", design: "monospaced" }),
+                font({ size: 8.5, weight: "medium", design: "rounded" }),
                 lineLimit(2),
                 foregroundStyle({ type: "hierarchical", style: "tertiary" }),
               ]}
@@ -94,11 +94,12 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
     const isTinted = environment?.widgetRenderingMode === "accented";
     const days = props.days ?? [];
     const upcomingRows = props.upcomingRows ?? [];
+    const isDense = upcomingRows.length >= 5;
 
     return (
       <VStack
         alignment="leading"
-        spacing={8}
+        spacing={isDense ? 6 : 7}
         modifiers={[
           frame({
             maxWidth: Infinity,
@@ -120,12 +121,12 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
         <HStack alignment="center" spacing={6}>
           <Image
             systemName="calendar.badge.clock"
-            size={14}
+            size={15}
             color={palette.accent}
           />
           <Text
             modifiers={[
-              font({ size: 14, weight: "bold", design: "rounded" }),
+              font({ size: 15, weight: "bold", design: "rounded" }),
               lineLimit(1),
               minimumScaleFactor(0.8),
               foregroundStyle(
@@ -140,7 +141,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
           <Spacer />
           <Text
             modifiers={[
-              font({ size: 10, weight: "bold", design: "monospaced" }),
+              font({ size: 11, weight: "bold", design: "rounded" }),
               monospacedDigit(),
               lineLimit(1),
               foregroundStyle(
@@ -148,7 +149,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                   ? { type: "hierarchical", style: "primary" }
                   : palette.accentText
               ),
-              padding({ horizontal: 8, vertical: 3 }),
+              padding({ horizontal: 9, vertical: 3.5 }),
               background(
                 palette.accentSoft,
                 shapes.capsule({ roundedCornerStyle: "continuous" })
@@ -180,7 +181,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
             {days.map((day) => {
               const barHeight =
                 day.courseCount > 0
-                  ? Math.max(6, Math.round(day.loadRatio * 34))
+                  ? Math.max(7, Math.round(day.loadRatio * 38))
                   : 4;
               const barColor =
                 day.courseCount === 0
@@ -207,13 +208,13 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                   />
                   <ZStack
                     alignment="bottom"
-                    modifiers={[frame({ width: 16, height: 34 })]}
+                    modifiers={[frame({ width: 18, height: 38 })]}
                   >
                     <RoundedRectangle
                       cornerRadius={4}
                       modifiers={[
                         foregroundStyle(palette.border),
-                        frame({ width: 16, height: 34 }),
+                        frame({ width: 18, height: 38 }),
                         opacity(0.35),
                       ]}
                     />
@@ -221,7 +222,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                       cornerRadius={4}
                       modifiers={[
                         foregroundStyle(barColor),
-                        frame({ width: 16, height: barHeight }),
+                        frame({ width: 18, height: barHeight }),
                       ]}
                     />
                   </ZStack>
@@ -229,7 +230,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                     <Text
                       modifiers={[
                         font({
-                          size: 10,
+                          size: 11,
                           weight: day.isToday ? "bold" : "semibold",
                           design: "rounded",
                         }),
@@ -244,9 +245,9 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                     <Text
                       modifiers={[
                         font({
-                          size: 10,
+                          size: 11,
                           weight: day.isToday ? "bold" : "medium",
-                          design: "monospaced",
+                          design: "rounded",
                         }),
                         monospacedDigit(),
                         lineLimit(1),
@@ -266,7 +267,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
 
         {/* Liste des prochains créneaux */}
         {upcomingRows.length > 0 ? (
-          <VStack alignment="leading" spacing={5}>
+          <VStack alignment="leading" spacing={isDense ? 4.5 : 6}>
             {upcomingRows.map((row) => {
               const rowAccent = isLight ? row.accentLight : row.accentDark;
               const rowBadgeBg = isLight
@@ -296,14 +297,14 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                 <HStack
                   key={row.key}
                   alignment="center"
-                  spacing={7}
+                  spacing={8}
                   modifiers={[
-                    padding({ horizontal: 8, vertical: 5 }),
+                    padding({ horizontal: 9, vertical: isDense ? 4.5 : 6 }),
                     frame({ maxWidth: Infinity, alignment: "leading" }),
                     background(
                       palette.surface,
                       shapes.roundedRectangle({
-                        cornerRadius: 9,
+                        cornerRadius: 10,
                         roundedCornerStyle: "continuous",
                       })
                     ),
@@ -321,18 +322,23 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                       foregroundStyle(
                         row.isActive ? palette.liveAccent : rowAccent
                       ),
-                      frame({ width: 3, height: 22 }),
+                      frame({ width: 3.5, height: isDense ? 24 : 27 }),
                     ]}
                   />
 
                   <VStack
                     alignment="leading"
                     spacing={0}
-                    modifiers={[frame({ width: 52, alignment: "leading" })]}
+                    modifiers={[frame({ width: 54, alignment: "leading" })]}
                   >
                     <Text
                       modifiers={[
-                        font({ size: 9, weight: "bold", design: "rounded" }),
+                        font({
+                          size: isDense ? 9.5 : 10,
+                          weight: "bold",
+                          design: "rounded",
+                        }),
+                        monospacedDigit(),
                         lineLimit(1),
                         foregroundStyle(palette.textSecondary),
                       ]}
@@ -342,9 +348,9 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                     <Text
                       modifiers={[
                         font({
-                          size: 10,
+                          size: isDense ? 11.5 : 12.5,
                           weight: "bold",
-                          design: "monospaced",
+                          design: "rounded",
                         }),
                         monospacedDigit(),
                         lineLimit(1),
@@ -362,9 +368,13 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                   <VStack alignment="leading" spacing={1}>
                     <Text
                       modifiers={[
-                        font({ size: 12, weight: "bold", design: "rounded" }),
+                        font({
+                          size: isDense ? 12.5 : 13.5,
+                          weight: "bold",
+                          design: "rounded",
+                        }),
                         lineLimit(1),
-                        minimumScaleFactor(0.84),
+                        minimumScaleFactor(0.82),
                         foregroundStyle(
                           isTinted
                             ? { type: "hierarchical", style: "primary" }
@@ -376,9 +386,13 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                     </Text>
                     <Text
                       modifiers={[
-                        font({ size: 10, weight: "medium" }),
+                        font({
+                          size: isDense ? 10.5 : 11,
+                          weight: "medium",
+                          design: "rounded",
+                        }),
                         lineLimit(1),
-                        minimumScaleFactor(0.8),
+                        minimumScaleFactor(0.78),
                         foregroundStyle(
                           isTinted
                             ? { type: "hierarchical", style: "secondary" }
@@ -395,10 +409,14 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
                   {badgeLabel && (
                     <Text
                       modifiers={[
-                        font({ size: 9, weight: "bold", design: "rounded" }),
+                        font({
+                          size: 9.5,
+                          weight: "bold",
+                          design: "rounded",
+                        }),
                         lineLimit(1),
                         foregroundStyle(badgeText),
-                        padding({ horizontal: 6, vertical: 2 }),
+                        padding({ horizontal: 6.5, vertical: 2.5 }),
                         background(
                           badgeBg,
                           shapes.capsule({ roundedCornerStyle: "continuous" })
@@ -415,9 +433,9 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
         ) : (
           <VStack
             alignment="center"
-            spacing={4}
+            spacing={5}
             modifiers={[
-              padding({ vertical: 16 }),
+              padding({ vertical: 18 }),
               frame({ maxWidth: Infinity, alignment: "center" }),
               background(
                 palette.surface,
@@ -429,10 +447,10 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
               border({ content: palette.border, width: 0.5 }),
             ]}
           >
-            <Image systemName="sparkles" size={20} color={palette.accent} />
+            <Image systemName="sparkles" size={22} color={palette.accent} />
             <Text
               modifiers={[
-                font({ size: 13, weight: "bold", design: "rounded" }),
+                font({ size: 14, weight: "bold", design: "rounded" }),
                 foregroundStyle(palette.textPrimary),
               ]}
             >
@@ -447,7 +465,7 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
             alignment="center"
             spacing={6}
             modifiers={[
-              padding({ horizontal: 9, vertical: 6 }),
+              padding({ horizontal: 10, vertical: 7 }),
               frame({ maxWidth: Infinity, alignment: "leading" }),
               background(
                 palette.dsSoft,
@@ -460,12 +478,13 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
           >
             <Image
               systemName="exclamationmark.circle.fill"
-              size={12}
+              size={13}
               color={palette.dsAccent}
             />
             <Text
               modifiers={[
-                font({ size: 11, weight: "semibold", design: "rounded" }),
+                font({ size: 11.5, weight: "semibold", design: "rounded" }),
+                monospacedDigit(),
                 lineLimit(1),
                 minimumScaleFactor(0.84),
                 foregroundStyle(palette.dsText),
@@ -477,31 +496,6 @@ const WeekOverviewWidget = createWidget<WeekOverviewWidgetProps>(
         )}
 
         <Spacer minLength={0} />
-
-        <HStack alignment="center" spacing={6}>
-          <Text
-            modifiers={[
-              font({ size: 10, weight: "semibold", design: "rounded" }),
-              lineLimit(1),
-              foregroundStyle(palette.textSecondary),
-            ]}
-          >
-            {props.extraUpcomingCount > 0
-              ? `+${props.extraUpcomingCount} autre${props.extraUpcomingCount > 1 ? "s" : ""} créneau${props.extraUpcomingCount > 1 ? "x" : ""}`
-              : "Emploi du temps"}
-          </Text>
-          <Spacer />
-          <Text
-            modifiers={[
-              font({ size: 9, weight: "medium", design: "monospaced" }),
-              monospacedDigit(),
-              lineLimit(1),
-              foregroundStyle(palette.textMuted),
-            ]}
-          >
-            {props.updatedAtLabel}
-          </Text>
-        </HStack>
       </VStack>
     );
   }

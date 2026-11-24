@@ -77,8 +77,6 @@ export type NextCourseWidgetProps = {
   countdownLabel: string;
   useLiveTimer: boolean;
   entryMs: number;
-  updatedAtLabel: string;
-  updatedShortLabel: string;
   paletteDark: WidgetPalette;
   paletteLight: WidgetPalette;
 };
@@ -92,7 +90,6 @@ export type DayAgendaWidgetProps = {
   extraCount: number;
   nextSchoolDayLabel: string;
   entryMs: number;
-  updatedAtLabel: string;
   paletteDark: WidgetPalette;
   paletteLight: WidgetPalette;
 };
@@ -120,7 +117,6 @@ export type WeekOverviewWidgetProps = {
   extraUpcomingCount: number;
   nextDsSummary: string;
   entryMs: number;
-  updatedAtLabel: string;
   paletteDark: WidgetPalette;
   paletteLight: WidgetPalette;
 };
@@ -242,8 +238,6 @@ function formatDayContext(targetDateStr: string, entryDateStr: string): string {
 function buildNextCourseProps(
   courses: Course[],
   atMs: number,
-  updatedAtLabel: string,
-  updatedShortLabel: string,
   subjectDict: SubjectDictionary,
   darkTheme: AppTheme,
   lightTheme: AppTheme,
@@ -261,8 +255,6 @@ function buildNextCourseProps(
       countdownLabel: formatStaticCountdown(current.end, atMs, true),
       useLiveTimer: true,
       entryMs: atMs,
-      updatedAtLabel,
-      updatedShortLabel,
       paletteDark,
       paletteLight,
     };
@@ -285,8 +277,6 @@ function buildNextCourseProps(
       countdownLabel: formatStaticCountdown(upcoming.start, atMs, false),
       useLiveTimer: withinHalfDay,
       entryMs: atMs,
-      updatedAtLabel,
-      updatedShortLabel,
       paletteDark,
       paletteLight,
     };
@@ -298,8 +288,6 @@ function buildNextCourseProps(
     countdownLabel: "Aucun cours à venir",
     useLiveTimer: false,
     entryMs: atMs,
-    updatedAtLabel,
-    updatedShortLabel,
     paletteDark,
     paletteLight,
   };
@@ -308,7 +296,6 @@ function buildNextCourseProps(
 function buildDayAgendaProps(
   courses: Course[],
   atMs: number,
-  updatedAtLabel: string,
   subjectDict: SubjectDictionary,
   darkTheme: AppTheme,
   lightTheme: AppTheme,
@@ -334,7 +321,6 @@ function buildDayAgendaProps(
       extraCount: Math.max(0, todayRemaining.length - shown.length),
       nextSchoolDayLabel: "",
       entryMs: atMs,
-      updatedAtLabel,
       paletteDark,
       paletteLight,
     };
@@ -362,7 +348,6 @@ function buildDayAgendaProps(
       extraCount: Math.max(0, nextDayCourses.length - shown.length),
       nextSchoolDayLabel: formatDayHeaderCompact(nextDateStr),
       entryMs: atMs,
-      updatedAtLabel,
       paletteDark,
       paletteLight,
     };
@@ -377,7 +362,6 @@ function buildDayAgendaProps(
     extraCount: 0,
     nextSchoolDayLabel: "",
     entryMs: atMs,
-    updatedAtLabel,
     paletteDark,
     paletteLight,
   };
@@ -386,7 +370,6 @@ function buildDayAgendaProps(
 function buildWeekOverviewProps(
   courses: Course[],
   atMs: number,
-  updatedAtLabel: string,
   subjectDict: SubjectDictionary,
   darkTheme: AppTheme,
   lightTheme: AppTheme,
@@ -454,28 +437,32 @@ function buildWeekOverviewProps(
     };
   });
 
+  const nextDs = courses.find((c) => c.end > atMs && isCourseDS(c));
+  let nextDsSummary = "";
+  if (nextDs) {
+    const dsDate = getParisDateString(nextDs.start);
+    const dsLabel =
+      resolveSubjectReadableName(nextDs.subject, subjectDict) ?? nextDs.title;
+    nextDsSummary = `Prochain DS : ${dsLabel} • ${formatDayContext(dsDate, entryDateStr)} ${formatTime(nextDs.start)}`;
+  }
+
   const weekUpcoming = weekCourses.filter((c) => c.end > atMs);
   const rowsSource =
     weekUpcoming.length > 0
       ? weekUpcoming
       : courses.filter((c) => c.end > atMs);
 
-  const upcomingRows: WeekUpcomingRow[] = rowsSource.slice(0, 4).map((c) => {
-    const { weekday, dayNum } = formatDayShort(getParisDateString(c.start));
-    const base = buildCourseRow(c, atMs, subjectDict, darkTheme, lightTheme);
-    return {
-      ...base,
-      dayShort: `${weekday.slice(0, 3)} ${dayNum}`,
-    };
-  });
-
-  const nextDs = courses.find((c) => c.end > atMs && isCourseDS(c));
-  let nextDsSummary = "";
-  if (nextDs) {
-    const dsDate = getParisDateString(nextDs.start);
-    const dsLabel = resolveSubjectReadableName(nextDs.subject, subjectDict) ?? nextDs.title;
-    nextDsSummary = `Prochain DS : ${dsLabel} • ${formatDayContext(dsDate, entryDateStr)} ${formatTime(nextDs.start)}`;
-  }
+  const maxUpcomingRows = nextDsSummary ? 4 : 5;
+  const upcomingRows: WeekUpcomingRow[] = rowsSource
+    .slice(0, maxUpcomingRows)
+    .map((c) => {
+      const { weekday, dayNum } = formatDayShort(getParisDateString(c.start));
+      const base = buildCourseRow(c, atMs, subjectDict, darkTheme, lightTheme);
+      return {
+        ...base,
+        dayShort: `${weekday.slice(0, 3)} ${dayNum}`,
+      };
+    });
 
   return {
     weekLabel: formatWeekHeader(mondayStr),
@@ -486,7 +473,6 @@ function buildWeekOverviewProps(
     extraUpcomingCount: Math.max(0, rowsSource.length - upcomingRows.length),
     nextDsSummary,
     entryMs: atMs,
-    updatedAtLabel,
     paletteDark,
     paletteLight,
   };
@@ -598,7 +584,7 @@ function collectTimelineTimestamps(courses: Course[], nowMs: number): number[] {
  */
 export function buildWidgetTimelines(
   courses: Course[],
-  lastSync: number | null,
+  _lastSync: number | null,
   subjectDict: SubjectDictionary,
   accentPreset: AccentPreset,
   useOledDark = false,
@@ -610,10 +596,6 @@ export function buildWidgetTimelines(
   const paletteDark = buildWidgetPalette(darkTheme);
   const paletteLight = buildWidgetPalette(lightTheme);
 
-  const syncTimeStr = formatTime(lastSync ?? nowMs);
-  const updatedAtLabel = `Mis à jour à ${syncTimeStr}`;
-  const updatedShortLabel = `MAJ ${syncTimeStr}`;
-
   const sortedCourses = [...courses].sort((a, b) => a.start - b.start);
   const timestamps = collectTimelineTimestamps(sortedCourses, nowMs);
 
@@ -623,8 +605,6 @@ export function buildWidgetTimelines(
       buildNextCourseProps(
         sortedCourses,
         ts,
-        updatedAtLabel,
-        updatedShortLabel,
         subjectDict,
         darkTheme,
         lightTheme,
@@ -640,7 +620,6 @@ export function buildWidgetTimelines(
       buildDayAgendaProps(
         sortedCourses,
         ts,
-        updatedAtLabel,
         subjectDict,
         darkTheme,
         lightTheme,
@@ -656,7 +635,6 @@ export function buildWidgetTimelines(
       buildWeekOverviewProps(
         sortedCourses,
         ts,
-        updatedAtLabel,
         subjectDict,
         darkTheme,
         lightTheme,
