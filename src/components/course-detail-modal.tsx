@@ -29,6 +29,7 @@ import {
   getCourseColorTokens,
 } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
+import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
 import {
   extractFloor,
@@ -75,6 +76,7 @@ function CourseDetailContent({
 }: CourseDetailContentProps) {
   const theme = useTheme();
   const nowMs = useCurrentTime();
+  const { liveActivity } = useSchedule();
   const subjectDict = useSyncExternalStore(
     subscribeSubjectDictionary,
     getSubjectDictionarySnapshot,
@@ -457,6 +459,80 @@ function CourseDetailContent({
             </>
           )}
         </View>
+
+        {/* Suivi en direct (Live Activity / Dynamic Island) */}
+        {!isPast && liveActivity.available && liveActivity.settings.enabled && (
+          <GlassButton
+            haptic="none"
+            tintColor={
+              liveActivity.status.isActive &&
+              liveActivity.status.courseKey === course.key
+                ? theme.corail[600]
+                : theme.accentTiers.softBg
+            }
+            borderColor={
+              liveActivity.status.isActive &&
+              liveActivity.status.courseKey === course.key
+                ? theme.corail[500]
+                : theme.accentTiers.border
+            }
+            onPress={() => {
+              if (
+                liveActivity.status.isActive &&
+                liveActivity.status.courseKey === course.key
+              ) {
+                haptics.selection();
+                void liveActivity.stop();
+              } else {
+                haptics.success();
+                void liveActivity.startForCourse(course);
+              }
+            }}
+            style={styles.quickActionPill}
+          >
+            <SymbolView
+              name={{
+                ios:
+                  liveActivity.status.isActive &&
+                  liveActivity.status.courseKey === course.key
+                    ? "stop.circle.fill"
+                    : "sparkles.rectangle.stack.fill",
+                android:
+                  liveActivity.status.isActive &&
+                  liveActivity.status.courseKey === course.key
+                    ? "stop_circle"
+                    : "notifications_active",
+                web:
+                  liveActivity.status.isActive &&
+                  liveActivity.status.courseKey === course.key
+                    ? "stop_circle"
+                    : "notifications_active",
+              }}
+              size={15}
+              tintColor={
+                liveActivity.status.isActive &&
+                liveActivity.status.courseKey === course.key
+                  ? theme.textOnAccent
+                  : theme.accentTiers.primary
+              }
+            />
+            <ThemedText
+              type="captionBold"
+              style={{
+                color:
+                  liveActivity.status.isActive &&
+                  liveActivity.status.courseKey === course.key
+                    ? theme.textOnAccent
+                    : theme.accentTiers.text,
+              }}
+            >
+              {liveActivity.status.isActive &&
+              liveActivity.status.courseKey === course.key
+                ? "Arrêter la Live Activity"
+                : "Suivre sur la Dynamic Island"}
+            </ThemedText>
+          </GlassButton>
+        )}
 
         {/* Actions rapides matière */}
         {(onFilterBySubject || onHideSubject) && (

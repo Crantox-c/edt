@@ -46,6 +46,7 @@ import {
   validateApiBaseUrl,
 } from "@/lib/geii-api";
 import { haptics, useHapticsPreference } from "@/lib/haptics";
+import { LIVE_ACTIVITY_LEAD_TIMES } from "@/lib/live-activity-settings";
 import { MAX_IOS_NOTIFICATIONS } from "@/lib/notifications";
 import {
   getSubjectDictionarySnapshot,
@@ -117,6 +118,7 @@ export default function SettingsScreen() {
       requestPermission,
       reschedule,
     },
+    liveActivity,
   } = useSchedule();
 
   const subjectDict = useSyncExternalStore(
@@ -202,6 +204,20 @@ export default function SettingsScreen() {
     } else {
       haptics.soft();
     }
+  };
+
+  const handleStartNextLiveActivity = async () => {
+    const started = await liveActivity.startForNextCourse();
+    if (started) {
+      haptics.success();
+    } else {
+      haptics.warning();
+    }
+  };
+
+  const handleStopLiveActivity = async () => {
+    haptics.selection();
+    await liveActivity.stop();
   };
 
   const cardSurfaceStyle = {
@@ -902,6 +918,222 @@ export default function SettingsScreen() {
                 ? "Après une mise à jour de l'app, recompilez l'IPA depuis GitHub Actions puis réinstallez-le avec votre outil de signature en conservant l'App Group partagé."
                 : "Les widgets natifs fonctionnent hors ligne depuis le cache local GEII et nécessitent un build iOS natif (non inclus dans Expo Go)."}
             </ThemedText>
+          </View>
+
+          {/* 4 bis. Live Activity & Dynamic Island */}
+          <View style={[styles.card, cardSurfaceStyle]}>
+            <View style={styles.cardHeaderBetween}>
+              <View style={styles.cardTitleRow}>
+                <View style={[styles.iconBadge, { backgroundColor: accent.softBg }]}>
+                  <SymbolView
+                    name={{
+                      ios: "sparkles.rectangle.stack.fill",
+                      android: "notifications_active",
+                      web: "notifications_active",
+                    }}
+                    size={15}
+                    tintColor={accent.primary}
+                  />
+                </View>
+                <ThemedText type="overline">
+                  Live Activity &amp; Dynamic Island
+                </ThemedText>
+              </View>
+
+              <View
+                style={[
+                  styles.widgetStatusPill,
+                  {
+                    backgroundColor: !liveActivity.available
+                      ? theme.ambre[100]
+                      : liveActivity.status.isActive
+                        ? theme.menthe[100]
+                        : liveActivity.settings.enabled
+                          ? accent.softBg
+                          : theme.cardBgSubtle,
+                  },
+                ]}
+              >
+                <ThemedText
+                  type="captionBold"
+                  style={{
+                    color: !liveActivity.available
+                      ? theme.ambre[700]
+                      : liveActivity.status.isActive
+                        ? theme.menthe[700]
+                        : liveActivity.settings.enabled
+                          ? accent.text
+                          : theme.textMuted,
+                  }}
+                >
+                  {!liveActivity.available
+                    ? "Development build"
+                    : liveActivity.status.isActive
+                      ? "Active"
+                      : liveActivity.settings.enabled
+                        ? "Prêt"
+                        : "Désactivée"}
+                </ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.switchRow}>
+              <View style={styles.switchInfo}>
+                <ThemedText type="smallBold">Activités en direct</ThemedText>
+                <ThemedText type="caption" themeColor="textSecondary">
+                  Affiche le cours imminent (salle en grand) puis la progression sur l&apos;écran verrouillé et la Dynamic Island
+                </ThemedText>
+              </View>
+              <Switch
+                value={liveActivity.settings.enabled}
+                onValueChange={(v) => {
+                  haptics.toggle();
+                  liveActivity.updateSettings({ enabled: v });
+                }}
+                trackColor={{ false: theme.border, true: accent.primary }}
+                thumbColor={theme.switchThumb}
+              />
+            </View>
+
+            {liveActivity.settings.enabled && (
+              <>
+                <View
+                  style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+                />
+
+                <ThemedText type="caption" themeColor="textSecondary">
+                  Délai d&apos;activation avant le cours
+                </ThemedText>
+
+                <View style={styles.chipsRow}>
+                  {LIVE_ACTIVITY_LEAD_TIMES.map((mins) => {
+                    const selected =
+                      liveActivity.settings.leadTimeMinutes === mins;
+                    return (
+                      <Pressable
+                        key={mins}
+                        onPress={() => {
+                          haptics.selection();
+                          liveActivity.updateSettings({ leadTimeMinutes: mins });
+                        }}
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: selected
+                              ? accent.softBg
+                              : theme.cardBgSubtle,
+                            borderColor: selected
+                              ? accent.primary
+                              : theme.cardBorder,
+                          },
+                        ]}
+                      >
+                        <ThemedText
+                          type="captionBold"
+                          style={{
+                            color: selected ? accent.text : theme.textSecondary,
+                          }}
+                        >
+                          {mins} min avant
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <View
+                  style={[
+                    styles.widgetItem,
+                    {
+                      backgroundColor: liveActivity.status.isActive
+                        ? theme.menthe[100]
+                        : theme.cardBgSubtle,
+                      borderColor: liveActivity.status.isActive
+                        ? theme.menthe[500]
+                        : theme.cardBorder,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    type="captionBold"
+                    style={{
+                      color: liveActivity.status.isActive
+                        ? theme.menthe[700]
+                        : theme.textSecondary,
+                    }}
+                  >
+                    {liveActivity.status.isActive
+                      ? `Active · ${liveActivity.status.courseTitle ?? "Cours"} (${
+                          liveActivity.status.phase === "active"
+                            ? "En cours"
+                            : "Imminent"
+                        })`
+                      : `En veille — démarre automatiquement ${liveActivity.settings.leadTimeMinutes} min avant le prochain cours`}
+                  </ThemedText>
+                </View>
+
+                {liveActivity.available && (
+                  <GlassSurfaceContainer spacing={8} style={styles.actionRow}>
+                    <GlassButton
+                      haptic="none"
+                      tintColor={theme.backgroundSelected}
+                      borderColor={theme.border}
+                      onPress={handleStartNextLiveActivity}
+                      containerStyle={styles.primaryBtnContainer}
+                      style={styles.secondaryBtn}
+                    >
+                      <ThemedText type="captionBold">
+                        {liveActivity.status.isActive
+                          ? "Actualiser l'activité"
+                          : "Lancer pour le prochain cours"}
+                      </ThemedText>
+                    </GlassButton>
+
+                    {liveActivity.status.isActive && (
+                      <GlassButton
+                        haptic="none"
+                        tintColor={corail[100]}
+                        borderColor={corail[500]}
+                        onPress={handleStopLiveActivity}
+                        style={styles.secondaryBtn}
+                      >
+                        <ThemedText
+                          type="captionBold"
+                          style={{ color: corail[700] }}
+                        >
+                          Arrêter
+                        </ThemedText>
+                      </GlassButton>
+                    )}
+                  </GlassSurfaceContainer>
+                )}
+
+                {liveActivity.status.lastError !== null && (
+                  <View
+                    style={[
+                      styles.permBanner,
+                      {
+                        backgroundColor: corail[100],
+                        borderColor: corail[500],
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      type="captionBold"
+                      style={{ color: corail[700] }}
+                    >
+                      Live Activity : {liveActivity.status.lastError}
+                    </ThemedText>
+                  </View>
+                )}
+
+                <ThemedText type="caption" themeColor="textMuted">
+                  {liveActivity.available
+                    ? "Une fois démarrée au premier plan dans la fenêtre choisie (ou manuellement depuis un cours), la barre de progression et les comptes à rebours s'animent en direct sans rouvrir l'app."
+                    : "La Live Activity et la Dynamic Island utilisent ActivityKit iOS natif (non inclus dans Expo Go)."}
+                </ThemedText>
+              </>
+            )}
           </View>
 
           {/* 5. Dictionnaire éditable des matières */}

@@ -134,7 +134,7 @@ const shortDayMonthFormatter = new Intl.DateTimeFormat("fr-FR", {
   month: "short",
 });
 
-function buildWidgetPalette(t: AppTheme): WidgetPalette {
+export function buildWidgetPalette(t: AppTheme): WidgetPalette {
   return {
     bgStart: t.background,
     bgEnd: t.cardBgSubtle,

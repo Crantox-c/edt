@@ -2,7 +2,7 @@ const { withDangerousMod } = require("expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
-const PATCH_MARKER = "resolveAppGroupIdentifierV3";
+const PATCH_MARKER = "resolveAppGroupIdentifierV4";
 const UTILS_PATCH_MARKER = "ExpoWidgetsTimelineSafeParseV2";
 
 const PATCHED_WIDGETS_STORAGE_SWIFT = `import Foundation
@@ -125,8 +125,8 @@ public enum WidgetsStorage {
     return sorted.first
   }
 
-  // resolveAppGroupIdentifierV3
-  private static func resolveAppGroupIdentifierV3() -> String? {
+  // resolveAppGroupIdentifierV4
+  private static func resolveAppGroupIdentifierV4() -> String? {
     var configured: String? = nil
     for bundle in candidateBundles() {
       if let val = (bundle.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -169,7 +169,7 @@ public enum WidgetsStorage {
     return (configured?.isEmpty == false) ? configured : candidates.first
   }
 
-  public static var appGroupIdentifier: String? = resolveAppGroupIdentifierV3()
+  public static var appGroupIdentifier: String? = resolveAppGroupIdentifierV4()
   static let defaults: UserDefaults? = appGroupIdentifier.flatMap { UserDefaults(suiteName: $0) }
 
   private static func storageDirectoryUrl() -> URL? {
@@ -233,7 +233,7 @@ public enum WidgetsStorage {
   }
 
   static func set(_ value: String, forKey key: String) {
-    writePlistObject(value, forKey: key)
+    writePlistObject(["__str": value], forKey: key)
     if let defaults {
       defaults.set(value, forKey: key)
       defaults.synchronize()
@@ -273,6 +273,10 @@ public enum WidgetsStorage {
   }
 
   public static func getString(forKey key: String) -> String? {
+    if let dict = readPlistObject(forKey: key) as? [String: Any],
+       let wrapped = dict["__str"] as? String {
+      return wrapped
+    }
     if let str = readPlistObject(forKey: key) as? String {
       return str
     }

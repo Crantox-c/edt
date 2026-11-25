@@ -11,6 +11,7 @@ import React, {
 import { AppState, type AppStateStatus } from "react-native";
 import { useCurrentTime } from "@/hooks/use-current-time";
 import { useFiltersContext } from "@/hooks/use-filters";
+import { useLiveActivity } from "@/hooks/use-live-activity";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useThemeContext } from "@/hooks/use-theme";
 import { extractAvailableFilters, filterCourses } from "@/lib/filters";
@@ -64,6 +65,7 @@ export type ScheduleContextValue = {
   updateApiBaseUrl: (nextBaseUrl: string) => Promise<void>;
   refreshWidgets: () => Promise<boolean>;
   notifications: ReturnType<typeof useNotifications>;
+  liveActivity: ReturnType<typeof useLiveActivity>;
 };
 
 const ScheduleContext = createContext<ScheduleContextValue | null>(null);
@@ -148,6 +150,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // Gestionnaire de notifications partagé sur la classe active et les filtres persistants
   const notifications = useNotifications(effectiveCourses);
+
+  // Gestionnaire de Live Activity & Dynamic Island (iOS)
+  const liveActivity = useLiveActivity({
+    courses: effectiveCourses,
+    accentPreset,
+    isOled,
+    nowMs,
+    filtersLoaded,
+  });
 
   const ensureWeekLoadedInternal = useCallback(
     async (group: FlatGroup, baseUrl: string, mondayIso: string, gen: number) => {
@@ -475,6 +486,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       updateApiBaseUrl,
       refreshWidgets,
       notifications,
+      liveActivity,
     }),
     [
       groups,
@@ -495,6 +507,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       updateApiBaseUrl,
       refreshWidgets,
       notifications,
+      liveActivity,
     ]
   );
 
