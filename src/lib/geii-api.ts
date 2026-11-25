@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const DEFAULT_API_BASE = "https://www.iuta-geii.univ-lille.fr/2026/students";
 export const DEFAULT_GROUP_ID = "15824860"; // BUT2_ESEA
 export const PRELOAD_WEEK_OFFSETS = [-1, 0, 1, 2, 3, 4, 5, 6] as const;
 export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -489,17 +488,93 @@ export const DEFAULT_GROUP: FlatGroup =
   FALLBACK_FLAT_GROUPS.find((g) => g.id === DEFAULT_GROUP_ID) ??
   FALLBACK_FLAT_GROUPS[0];
 
+export function getAcademicYearForDate(epochMs = Date.now()): number {
+  const iso = getParisDateIso(epochMs);
+  const [yStr, mStr] = iso.split("-");
+  const year = Number(yStr);
+  const month = Number(mStr);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    return 2026;
+  }
+  return month >= 8 ? year : year - 1;
+}
+
+export function buildDefaultApiBaseForYear(year: number): string {
+  return `https://www.iuta-geii.univ-lille.fr/${year}/students`;
+}
+
+export function getDefaultApiBase(epochMs = Date.now()): string {
+  return buildDefaultApiBaseForYear(getAcademicYearForDate(epochMs));
+}
+
+export const DEFAULT_API_BASE = getDefaultApiBase();
+
+let resolvedDefaultApiBase: string | null = null;
+
+export function resetResolvedDefaultApiBase(): void {
+  resolvedDefaultApiBase = null;
+}
+
+export type ApiBaseUrlValidation =
+  | { ok: true; normalized: string }
+  | { ok: false; error: string };
+
+export function validateApiBaseUrl(raw?: string | null): ApiBaseUrlValidation {
+  const trimmed = (raw ?? "").trim().replace(/\/+$/, "");
+  if (!trimmed) {
+    return { ok: true, normalized: getDefaultApiBase() };
+  }
+  const isHttps = /^https:\/\/[^\s/$.?#][^\s]*$/i.test(trimmed);
+  const isLocalDevHttp =
+    /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(?:\/[^\s]*)?$/i.test(trimmed);
+  if (!isHttps && !isLocalDevHttp) {
+    return {
+      ok: false,
+      error:
+        "URL invalide : utilisez https:// (ou http://localhost pour un proxy local).",
+    };
+  }
+  return { ok: true, normalized: trimmed };
+}
+
 export function normalizeBaseUrl(raw?: string | null): string {
   const trimmed = (raw ?? "").trim().replace(/\/+$/, "");
-  return trimmed || DEFAULT_API_BASE;
+  return trimmed || getDefaultApiBase();
+}
+
+function getCandidateBaseUrls(baseUrl: string): string[] {
+  const normalized = normalizeBaseUrl(baseUrl);
+  const defaultBase = getDefaultApiBase();
+  if (normalized !== defaultBase) {
+    return [normalized];
+  }
+
+  const academicYear = getAcademicYearForDate();
+  const rawList = [
+    resolvedDefaultApiBase,
+    defaultBase,
+    buildDefaultApiBaseForYear(academicYear + 1),
+    buildDefaultApiBaseForYear(academicYear - 1),
+  ].filter((x): x is string => Boolean(x));
+
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const item of rawList) {
+    if (!seen.has(item)) {
+      seen.add(item);
+      unique.push(item);
+    }
+  }
+  return unique;
 }
 
 export function isSyncStale(
   lastSync: number | null,
-  maxAgeMs = STALE_AFTER_MS
+  maxAgeMs = STALE_AFTER_MS,
+  nowMs = Date.now()
 ): boolean {
   if (lastSync === null) return false;
-  return Date.now() - lastSync > maxAgeMs;
+  return nowMs - lastSync > maxAgeMs;
 }
 
 function parseRawSeance(raw: RawSeance): Course | null {
@@ -575,14 +650,39 @@ async function fetchWithTimeout(
 }
 
 export async function fetchGroups(
-  baseUrl = DEFAULT_API_BASE,
+  baseUrl = getDefaultApiBase(),
   signal?: AbortSignal
 ): Promise<FlatGroup[]> {
-  const base = normalizeBaseUrl(baseUrl);
-  const res = await fetchWithTimeout(`${base}/Groupes.php`, { method: "GET" }, 12000, signal);
-  if (!res.ok) {
-    throw new Error(`Groupes.php HTTP ${res.status}`);
+  const candidates = getCandidateBaseUrls(baseUrl);
+  const normalizedInput = normalizeBaseUrl(baseUrl);
+  const isDefault = normalizedInput === getDefaultApiBase();
+
+  let res: Response | null = null;
+  let usedBase = candidates[0];
+
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    const attempt = await fetchWithTimeout(
+      `${candidate}/Groupes.php`,
+      { method: "GET" },
+      12000,
+      signal
+    );
+    if (attempt.status === 404 && i < candidates.length - 1) {
+      continue;
+    }
+    res = attempt;
+    usedBase = candidate;
+    break;
   }
+
+  if (!res || !res.ok) {
+    throw new Error(`Groupes.php HTTP ${res?.status ?? "404"}`);
+  }
+  if (isDefault) {
+    resolvedDefaultApiBase = usedBase;
+  }
+
   const rawText = await res.text();
   if (!rawText.trim()) {
     throw new Error("Réponse vide de Groupes.php");
@@ -606,31 +706,49 @@ export async function fetchGroups(
 export async function fetchWeekSeances(
   mondayIso: string,
   codes: string[],
-  baseUrl = DEFAULT_API_BASE,
+  baseUrl = getDefaultApiBase(),
   signal?: AbortSignal
 ): Promise<Course[]> {
-  const base = normalizeBaseUrl(baseUrl);
+  const candidates = getCandidateBaseUrls(baseUrl);
+  const normalizedInput = normalizeBaseUrl(baseUrl);
+  const isDefault = normalizedInput === getDefaultApiBase();
+
   // Encodage manuel sûr sur Hermes (sans dépendance au polyfill URLSearchParams)
   const body =
     `monday=${encodeURIComponent(mondayIso)}` +
     `&ressource=${encodeURIComponent(JSON.stringify(codes))}`;
 
-  const res = await fetchWithTimeout(
-    `${base}/Seances.php`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        Accept: "application/json, text/javascript, */*; q=0.01",
-      },
-      body,
-    },
-    12000,
-    signal
-  );
+  let res: Response | null = null;
+  let usedBase = candidates[0];
 
-  if (!res.ok) {
-    throw new Error(`Seances.php HTTP ${res.status} (${mondayIso})`);
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    const attempt = await fetchWithTimeout(
+      `${candidate}/Seances.php`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          Accept: "application/json, text/javascript, */*; q=0.01",
+        },
+        body,
+      },
+      12000,
+      signal
+    );
+    if (attempt.status === 404 && i < candidates.length - 1) {
+      continue;
+    }
+    res = attempt;
+    usedBase = candidate;
+    break;
+  }
+
+  if (!res || !res.ok) {
+    throw new Error(`Seances.php HTTP ${res?.status ?? "404"} (${mondayIso})`);
+  }
+  if (isDefault) {
+    resolvedDefaultApiBase = usedBase;
   }
 
   const rawText = await res.text();
@@ -688,16 +806,23 @@ export async function saveSelectedGroupId(groupId: string): Promise<void> {
 export async function loadApiBaseUrl(): Promise<string> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEYS.API_BASE);
-    return normalizeBaseUrl(raw);
+    if (!raw) return getDefaultApiBase();
+    const validation = validateApiBaseUrl(raw);
+    return validation.ok ? validation.normalized : getDefaultApiBase();
   } catch {
-    return DEFAULT_API_BASE;
+    return getDefaultApiBase();
   }
 }
 
 export async function saveApiBaseUrl(baseUrl: string): Promise<string> {
-  const normalized = normalizeBaseUrl(baseUrl);
+  const validation = validateApiBaseUrl(baseUrl);
+  if (!validation.ok) {
+    throw new Error(validation.error);
+  }
+  const normalized = validation.normalized;
+  const defaultBase = getDefaultApiBase();
   try {
-    if (normalized === DEFAULT_API_BASE) {
+    if (normalized === defaultBase) {
       await AsyncStorage.removeItem(STORAGE_KEYS.API_BASE);
     } else {
       await AsyncStorage.setItem(STORAGE_KEYS.API_BASE, normalized);
@@ -755,7 +880,7 @@ export async function saveCachedGroupEvents(
  */
 export async function syncGroupSchedule(
   group: FlatGroup,
-  baseUrl = DEFAULT_API_BASE,
+  baseUrl = getDefaultApiBase(),
   signal?: AbortSignal
 ): Promise<GeiiSyncResult> {
   const cached = await loadCachedGroupEvents(group.id);
@@ -865,7 +990,7 @@ export async function syncGroupSchedule(
 export async function fetchAndMergeWeek(
   group: FlatGroup,
   mondayIso: string,
-  baseUrl = DEFAULT_API_BASE,
+  baseUrl = getDefaultApiBase(),
   signal?: AbortSignal
 ): Promise<CachedGroupEvents> {
   const weekCourses = await fetchWeekSeances(mondayIso, group.codes, baseUrl, signal);

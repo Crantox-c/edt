@@ -2,6 +2,7 @@ import { NativeTabs } from "expo-router/native-tabs";
 import { FontFamilies } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { haptics } from "@/lib/haptics";
+import { useQiblaTabPreference } from "@/lib/tab-preferences";
 
 /**
  * Barre d'onglets système native (iOS 26 Liquid Glass).
@@ -10,6 +11,7 @@ import { haptics } from "@/lib/haptics";
  */
 export default function AppTabs() {
   const theme = useTheme();
+  const { showQiblaTab } = useQiblaTabPreference();
 
   return (
     <NativeTabs
@@ -37,6 +39,7 @@ export default function AppTabs() {
 
       <NativeTabs.Trigger
         name="qibla"
+        hidden={!showQiblaTab}
         listeners={{ tabPress: () => haptics.selection() }}
       >
         <NativeTabs.Trigger.Label>Qibla</NativeTabs.Trigger.Label>

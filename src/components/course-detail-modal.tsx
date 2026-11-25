@@ -1,4 +1,10 @@
-import React, { useState, useSyncExternalStore } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   Modal,
   Platform,
@@ -55,6 +61,7 @@ export type CourseDetailModalProps = {
 type CourseDetailContentProps = {
   course: Course;
   onClose: () => void;
+  onRegisterCloseHandler: (fn: () => void) => void;
   onFilterBySubject?: (subject: string) => void;
   onHideSubject?: (subject: string) => void;
 };
@@ -62,6 +69,7 @@ type CourseDetailContentProps = {
 function CourseDetailContent({
   course,
   onClose,
+  onRegisterCloseHandler,
   onFilterBySubject,
   onHideSubject,
 }: CourseDetailContentProps) {
@@ -80,6 +88,22 @@ function CourseDetailContent({
 
   const savedNote = notesMap[course.key] ?? "";
   const [noteInput, setNoteInput] = useState(savedNote);
+
+  const noteInputRef = useRef(noteInput);
+  const savedNoteRef = useRef(savedNote);
+  const dirtyRef = useRef(false);
+  const savedOnCloseRef = useRef(false);
+
+  useEffect(() => {
+    noteInputRef.current = noteInput;
+  }, [noteInput]);
+
+  useEffect(() => {
+    savedNoteRef.current = savedNote;
+    if (!dirtyRef.current) {
+      setNoteInput(savedNote);
+    }
+  }, [savedNote]);
 
   const dateStr = getParisDateString(course.start);
   const dayName = formatDayHeader(dateStr);
@@ -102,16 +126,41 @@ function CourseDetailContent({
 
   const isSaved = noteInput.trim().length > 0 && noteInput.trim() === savedNote;
 
-  const handleClose = () => {
-    const trimmed = noteInput.trim();
-    if (trimmed !== savedNote) {
-      haptics.success();
-      saveCourseNote(course.key, noteInput);
-    } else {
+  const flushNote = useCallback(
+    (withHaptic: boolean): boolean => {
+      if (savedOnCloseRef.current) return false;
+      const current = noteInputRef.current;
+      if (current.trim() !== savedNoteRef.current) {
+        savedOnCloseRef.current = true;
+        dirtyRef.current = false;
+        if (withHaptic) {
+          haptics.success();
+        }
+        void saveCourseNote(course.key, current);
+        return true;
+      }
+      return false;
+    },
+    [course.key]
+  );
+
+  const handleClose = useCallback(() => {
+    const didSave = flushNote(true);
+    if (!didSave) {
       haptics.tap();
     }
     onClose();
-  };
+  }, [flushNote, onClose]);
+
+  useEffect(() => {
+    onRegisterCloseHandler(handleClose);
+  }, [onRegisterCloseHandler, handleClose]);
+
+  useEffect(() => {
+    return () => {
+      flushNote(false);
+    };
+  }, [flushNote]);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -524,8 +573,14 @@ function CourseDetailContent({
 
           <TextInput
             value={noteInput}
-            onChangeText={setNoteInput}
-            onBlur={() => saveCourseNote(course.key, noteInput)}
+            onChangeText={(text) => {
+              dirtyRef.current = true;
+              savedOnCloseRef.current = false;
+              setNoteInput(text);
+            }}
+            onBlur={() => {
+              flushNote(false);
+            }}
             placeholder="Ajouter un mémo (ex. apporter blouse, devoir à rendre...)"
             placeholderTextColor={theme.textMuted}
             multiline
@@ -563,6 +618,18 @@ export function CourseDetailModal({
   onFilterBySubject,
   onHideSubject,
 }: CourseDetailModalProps) {
+  const requestCloseRef = useRef<() => void>(onClose);
+
+  useEffect(() => {
+    if (!visible || !course) {
+      requestCloseRef.current = onClose;
+    }
+  }, [visible, course, onClose]);
+
+  const registerCloseHandler = useCallback((fn: () => void) => {
+    requestCloseRef.current = fn;
+  }, []);
+
   if (!course) return null;
 
   return (
@@ -571,12 +638,13 @@ export function CourseDetailModal({
       animationType="slide"
       presentationStyle={Platform.OS === "ios" ? "pageSheet" : "overFullScreen"}
       transparent={Platform.OS !== "ios"}
-      onRequestClose={onClose}
+      onRequestClose={() => requestCloseRef.current()}
     >
       <CourseDetailContent
         key={course.key}
         course={course}
         onClose={onClose}
+        onRegisterCloseHandler={registerCloseHandler}
         onFilterBySubject={onFilterBySubject}
         onHideSubject={onHideSubject}
       />

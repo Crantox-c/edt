@@ -7,6 +7,7 @@ const HAPTICS_STORAGE_KEY = "app:haptics_enabled_v1";
 
 let enabledCache = true;
 let initialized = false;
+let initStarted = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -15,6 +16,7 @@ function notify() {
 
 async function initHapticsPref(): Promise<void> {
   if (initialized) return;
+  initStarted = true;
   initialized = true;
   try {
     const raw = await AsyncStorage.getItem(HAPTICS_STORAGE_KEY);
@@ -31,14 +33,15 @@ async function initHapticsPref(): Promise<void> {
 }
 
 function getSnapshot(): boolean {
-  if (!initialized) {
-    initHapticsPref();
-  }
   return enabledCache;
 }
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
+  if (!initStarted) {
+    initStarted = true;
+    void initHapticsPref();
+  }
   return () => {
     listeners.delete(listener);
   };
@@ -46,6 +49,7 @@ function subscribe(listener: () => void): () => void {
 
 export async function setHapticsEnabled(enabled: boolean): Promise<void> {
   enabledCache = enabled;
+  initStarted = true;
   initialized = true;
   notify();
   try {

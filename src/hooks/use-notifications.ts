@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import type { Course } from "@/lib/geii-api";
@@ -15,8 +15,16 @@ export function useNotifications(courses: Course[]) {
   const [settings, setSettings] = useState<NotificationSettings>(
     DEFAULT_NOTIFICATION_SETTINGS
   );
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(
+    null
+  );
   const [scheduledCount, setScheduledCount] = useState<number>(0);
+
+  const settingsRef = useRef<NotificationSettings>(
+    DEFAULT_NOTIFICATION_SETTINGS
+  );
+  const scheduleGenRef = useRef(0);
 
   // 1. Charger les réglages et vérifier les permissions au montage
   useEffect(() => {
@@ -24,13 +32,17 @@ export function useNotifications(courses: Course[]) {
 
     async function init() {
       const loaded = await loadNotificationSettings();
-      if (mounted) setSettings(loaded);
+      if (!mounted) return;
+      settingsRef.current = loaded;
+      setSettings(loaded);
+      setSettingsLoaded(true);
 
       if (Platform.OS !== "web") {
         const { status } = await Notifications.getPermissionsAsync();
         if (mounted) setPermissionGranted(status === "granted");
 
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const scheduled =
+          await Notifications.getAllScheduledNotificationsAsync();
         if (mounted) setScheduledCount(scheduled.length);
       }
     }
@@ -44,37 +56,56 @@ export function useNotifications(courses: Course[]) {
 
   // 2. Reprogrammer les notifications manuellement
   const reschedule = useCallback(
-    async (coursesToSchedule: Course[], customSettings = settings) => {
-      const count = await scheduleAllNotifications(coursesToSchedule, customSettings);
-      setScheduledCount(count);
+    async (
+      coursesToSchedule: Course[],
+      customSettings = settingsRef.current
+    ) => {
+      const gen = ++scheduleGenRef.current;
+      const count = await scheduleAllNotifications(
+        coursesToSchedule,
+        customSettings
+      );
+      if (scheduleGenRef.current === gen) {
+        setScheduledCount(count);
+      }
       return count;
     },
-    [settings]
+    []
   );
 
-  // 3. Programmer automatiquement de façon asynchrone dès que les cours ou réglages changent
+  // 3. Programmer ou annuler automatiquement dès que les cours, réglages ou permissions changent
   useEffect(() => {
+    if (!settingsLoaded) return;
+
     let mounted = true;
-    if (courses.length > 0 && settings.enabled) {
+    const gen = ++scheduleGenRef.current;
+
+    if (!settings.enabled) {
+      scheduleAllNotifications([], settings).then((count) => {
+        if (mounted && scheduleGenRef.current === gen) {
+          setScheduledCount(count);
+        }
+      });
+    } else if (permissionGranted !== false) {
       scheduleAllNotifications(courses, settings).then((count) => {
-        if (mounted) {
+        if (mounted && scheduleGenRef.current === gen) {
           setScheduledCount(count);
         }
       });
     }
+
     return () => {
       mounted = false;
     };
-  }, [courses, settings]);
+  }, [courses, settings, settingsLoaded, permissionGranted]);
 
-  // Mettre à jour un réglage
+  // Mettre à jour un réglage hors du updater React
   const updateSettings = useCallback(
     async (updater: Partial<NotificationSettings>) => {
-      setSettings((prev) => {
-        const next = { ...prev, ...updater };
-        saveNotificationSettings(next);
-        return next;
-      });
+      const next = { ...settingsRef.current, ...updater };
+      settingsRef.current = next;
+      setSettings(next);
+      await saveNotificationSettings(next);
     },
     []
   );
@@ -83,12 +114,20 @@ export function useNotifications(courses: Course[]) {
   const requestPermission = useCallback(async () => {
     const granted = await requestNotificationPermissions();
     setPermissionGranted(granted);
-    if (granted && courses.length > 0) {
-      const count = await scheduleAllNotifications(courses, settings);
-      setScheduledCount(count);
+    if (granted) {
+      const gen = ++scheduleGenRef.current;
+      const count = await scheduleAllNotifications(courses, settingsRef.current);
+      if (scheduleGenRef.current === gen) {
+        setScheduledCount(count);
+      }
     }
     return granted;
-  }, [courses, settings]);
+  }, [courses]);
+
+  const rescheduleCurrent = useCallback(
+    () => reschedule(courses, settingsRef.current),
+    [courses, reschedule]
+  );
 
   return {
     settings,
@@ -96,6 +135,6 @@ export function useNotifications(courses: Course[]) {
     scheduledCount,
     updateSettings,
     requestPermission,
-    reschedule: () => reschedule(courses, settings),
+    reschedule: rescheduleCurrent,
   };
 }

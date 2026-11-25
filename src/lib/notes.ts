@@ -4,6 +4,7 @@ const NOTES_STORAGE_KEY = "app:course_notes_v1";
 
 let notesCache: Record<string, string> = {};
 let initialized = false;
+let initStarted = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -12,6 +13,7 @@ function notify() {
 
 export async function initCourseNotes(): Promise<Record<string, string>> {
   if (initialized) return notesCache;
+  initStarted = true;
   try {
     const raw = await AsyncStorage.getItem(NOTES_STORAGE_KEY);
     if (raw) {
@@ -27,14 +29,15 @@ export async function initCourseNotes(): Promise<Record<string, string>> {
 }
 
 export function getCourseNotesSnapshot(): Record<string, string> {
-  if (!initialized) {
-    initCourseNotes();
-  }
   return notesCache;
 }
 
 export function subscribeCourseNotes(listener: () => void): () => void {
   listeners.add(listener);
+  if (!initStarted) {
+    initStarted = true;
+    void initCourseNotes();
+  }
   return () => {
     listeners.delete(listener);
   };
@@ -51,6 +54,8 @@ export async function saveCourseNote(
   } else {
     next[courseKey] = trimmed;
   }
+  initStarted = true;
+  initialized = true;
   notesCache = next;
   notify();
   try {

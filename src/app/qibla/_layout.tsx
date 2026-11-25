@@ -10,7 +10,7 @@ export default function QiblaLayout() {
   const theme = useTheme();
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
       <AmbientBackground />
       <View style={styles.stackLayer}>
         <Stack
@@ -46,5 +46,6 @@ const styles = StyleSheet.create({
   },
   stackLayer: {
     flex: 1,
+    zIndex: 1,
   },
 });

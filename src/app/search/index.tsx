@@ -21,6 +21,7 @@ import {
   getTabScrollPaddingBottom,
 } from "@/constants/theme";
 import { useCurrentTime } from "@/hooks/use-current-time";
+import { useFilters } from "@/hooks/use-filters";
 import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -29,6 +30,7 @@ import {
   getParisDateString,
   getTodayParisDateString,
 } from "@/lib/dates";
+import { filterCourses } from "@/lib/filters";
 import { haptics } from "@/lib/haptics";
 import { Course, isCourseDS } from "@/lib/geii-api";
 import {
@@ -56,6 +58,13 @@ export default function SearchScreen() {
   const nowMs = useCurrentTime();
   const todayStr = getTodayParisDateString();
   const { courses, modifiedKeys } = useSchedule();
+  const {
+    criteria,
+    availableFilters,
+    activeFilterCount,
+    toggleHiddenSubject,
+    resetFilters,
+  } = useFilters(courses);
 
   const subjectDict = useSyncExternalStore(
     subscribeSubjectDictionary,
@@ -66,12 +75,24 @@ export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter | null>(null);
   const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
+  const [ignoreAgendaFilters, setIgnoreAgendaFilters] = useState(false);
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
 
-  // Inventaire dynamique des matières de la classe active
+  const searchableCourses = useMemo(() => {
+    if (ignoreAgendaFilters || activeFilterCount === 0) {
+      return courses;
+    }
+    return filterCourses(
+      courses,
+      { ...criteria, searchQuery: "" },
+      availableFilters
+    );
+  }, [courses, ignoreAgendaFilters, activeFilterCount, criteria, availableFilters]);
+
+  // Inventaire dynamique des matières (filtré selon l'Agenda sauf si ignoré)
   const subjectInventory = useMemo(() => {
     const map = new Map<string, number>();
-    for (const c of courses) {
+    for (const c of searchableCourses) {
       map.set(c.subject, (map.get(c.subject) ?? 0) + 1);
     }
     return Array.from(map.entries())
@@ -81,7 +102,7 @@ export default function SearchScreen() {
         readable: resolveSubjectReadableName(code, subjectDict),
       }))
       .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
-  }, [courses, subjectDict]);
+  }, [searchableCourses, subjectDict]);
 
   const isSearching =
     query.trim().length > 0 || quickFilter !== null || subjectFilter !== null;
@@ -91,7 +112,7 @@ export default function SearchScreen() {
 
     const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-    return courses.filter((c) => {
+    return searchableCourses.filter((c) => {
       if (subjectFilter && c.subject !== subjectFilter) return false;
 
       if (quickFilter === "DS") {
@@ -124,7 +145,7 @@ export default function SearchScreen() {
 
       return true;
     });
-  }, [courses, isSearching, query, quickFilter, subjectFilter, subjectDict, nowMs]);
+  }, [searchableCourses, isSearching, query, quickFilter, subjectFilter, subjectDict, nowMs]);
 
   const sections = useMemo(() => {
     const map = new Map<string, Course[]>();
@@ -198,6 +219,77 @@ export default function SearchScreen() {
         >
         {Platform.OS !== "ios" && (
           <SearchBar value={query} onChangeText={setQuery} />
+        )}
+
+        {activeFilterCount > 0 && (
+          <View
+            style={[
+              styles.sharedFilterBanner,
+              {
+                backgroundColor: ignoreAgendaFilters
+                  ? theme.cardBgSubtle
+                  : theme.accentTiers.softBg,
+                borderColor: ignoreAgendaFilters
+                  ? theme.cardBorder
+                  : theme.accentTiers.border,
+              },
+            ]}
+          >
+            <ThemedText
+              type="captionBold"
+              style={{
+                color: ignoreAgendaFilters
+                  ? theme.textSecondary
+                  : theme.accentTiers.text,
+                flex: 1,
+              }}
+            >
+              {ignoreAgendaFilters
+                ? `Filtres Agenda ignorés (${activeFilterCount})`
+                : `Filtres Agenda actifs (${activeFilterCount})`}
+            </ThemedText>
+
+            <View style={styles.sharedFilterActions}>
+              <Pressable
+                onPress={() => {
+                  haptics.selection();
+                  setIgnoreAgendaFilters((prev) => !prev);
+                }}
+                style={[
+                  styles.sharedFilterBtn,
+                  {
+                    backgroundColor: theme.cardBg,
+                    borderColor: theme.cardBorder,
+                  },
+                ]}
+              >
+                <ThemedText type="captionBold" themeColor="text">
+                  {ignoreAgendaFilters ? "Réappliquer" : "Tout voir"}
+                </ThemedText>
+              </Pressable>
+
+              {ignoreAgendaFilters && (
+                <Pressable
+                  onPress={() => {
+                    haptics.warning();
+                    setIgnoreAgendaFilters(false);
+                    resetFilters();
+                  }}
+                  style={[
+                    styles.sharedFilterBtn,
+                    {
+                      backgroundColor: theme.cardBg,
+                      borderColor: theme.cardBorder,
+                    },
+                  ]}
+                >
+                  <ThemedText type="captionBold" themeColor="textSecondary">
+                    Réinitialiser
+                  </ThemedText>
+                </Pressable>
+              )}
+            </View>
+          </View>
         )}
 
         {/* Raccourcis rapides */}
@@ -403,6 +495,14 @@ export default function SearchScreen() {
         course={activeCourse}
         visible={activeCourse !== null}
         onClose={() => setActiveCourse(null)}
+        onFilterBySubject={(subject) => {
+          setActiveCourse(null);
+          setSubjectFilter(subject);
+        }}
+        onHideSubject={(subject) => {
+          setActiveCourse(null);
+          toggleHiddenSubject(subject);
+        }}
       />
     </View>
   );
@@ -422,6 +522,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.one,
     gap: Spacing.three,
+  },
+  sharedFilterBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.xl,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  sharedFilterActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  sharedFilterBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   sectionBlock: {
     gap: Spacing.two,

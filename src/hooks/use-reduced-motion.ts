@@ -8,6 +8,7 @@ const REDUCED_MOTION_KEY = "app:reduced_motion_v1";
 
 let prefCache: ReducedMotionPreference = "system";
 let initialized = false;
+let initStarted = false;
 const listeners = new Set<() => void>();
 
 function notify() {
@@ -16,6 +17,7 @@ function notify() {
 
 async function initReducedMotionPref(): Promise<void> {
   if (initialized) return;
+  initStarted = true;
   initialized = true;
   try {
     const raw = await AsyncStorage.getItem(REDUCED_MOTION_KEY);
@@ -29,14 +31,15 @@ async function initReducedMotionPref(): Promise<void> {
 }
 
 function getSnapshot(): ReducedMotionPreference {
-  if (!initialized) {
-    initReducedMotionPref();
-  }
   return prefCache;
 }
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
+  if (!initStarted) {
+    initStarted = true;
+    void initReducedMotionPref();
+  }
   return () => {
     listeners.delete(listener);
   };
@@ -46,6 +49,7 @@ export async function setReducedMotionPreference(
   pref: ReducedMotionPreference
 ): Promise<void> {
   prefCache = pref;
+  initStarted = true;
   initialized = true;
   notify();
   try {

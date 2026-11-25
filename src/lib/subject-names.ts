@@ -23,6 +23,7 @@ export const DEFAULT_SUBJECT_NAMES: Record<string, string> = {
 let memoryCache: Record<string, string> = { ...DEFAULT_SUBJECT_NAMES };
 const listeners = new Set<() => void>();
 let initialized = false;
+let initStarted = false;
 
 function notify() {
   listeners.forEach((l) => l());
@@ -30,11 +31,21 @@ function notify() {
 
 export async function initSubjectDictionary(): Promise<Record<string, string>> {
   if (initialized) return memoryCache;
+  initStarted = true;
   try {
     const raw = await AsyncStorage.getItem(SUBJECT_DICT_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Record<string, string>;
-      memoryCache = { ...DEFAULT_SUBJECT_NAMES, ...parsed };
+    if (raw !== null) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const cleanParsed: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+          const cleanCode = k.trim().toUpperCase();
+          if (cleanCode && typeof v === "string" && v.trim()) {
+            cleanParsed[cleanCode] = v.trim();
+          }
+        }
+        memoryCache = cleanParsed;
+      }
     }
   } catch (e) {
     console.warn("Erreur lecture dictionnaire matières:", e);
@@ -46,14 +57,15 @@ export async function initSubjectDictionary(): Promise<Record<string, string>> {
 }
 
 export function getSubjectDictionarySnapshot(): Record<string, string> {
-  if (!initialized) {
-    initSubjectDictionary();
-  }
   return memoryCache;
 }
 
 export function subscribeSubjectDictionary(listener: () => void): () => void {
   listeners.add(listener);
+  if (!initStarted) {
+    initStarted = true;
+    void initSubjectDictionary();
+  }
   return () => {
     listeners.delete(listener);
   };
@@ -73,6 +85,8 @@ export async function setSubjectCustomName(
   } else {
     next[cleanCode] = cleanName;
   }
+  initStarted = true;
+  initialized = true;
   memoryCache = next;
   notify();
 
@@ -84,6 +98,8 @@ export async function setSubjectCustomName(
 }
 
 export async function resetSubjectDictionary(): Promise<void> {
+  initStarted = true;
+  initialized = true;
   memoryCache = { ...DEFAULT_SUBJECT_NAMES };
   notify();
   try {

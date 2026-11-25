@@ -12,10 +12,13 @@ import { Pressable, View, StyleSheet } from "react-native";
 import { MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { haptics } from "@/lib/haptics";
+import { useQiblaTabPreference } from "@/lib/tab-preferences";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
 
 export default function AppTabs() {
+  const { showQiblaTab } = useQiblaTabPreference();
+
   return (
     <Tabs>
       <TabSlot style={{ height: "100%" }} />
@@ -24,9 +27,11 @@ export default function AppTabs() {
           <TabTrigger name="home" href="/" asChild>
             <TabButton icon="calendar">Agenda</TabButton>
           </TabTrigger>
-          <TabTrigger name="qibla" href="/qibla" asChild>
-            <TabButton icon="location.north.circle.fill">Qibla</TabButton>
-          </TabTrigger>
+          {showQiblaTab && (
+            <TabTrigger name="qibla" href="/qibla" asChild>
+              <TabButton icon="location.north.circle.fill">Qibla</TabButton>
+            </TabTrigger>
+          )}
           <TabTrigger name="search" href="/search" asChild>
             <TabButton icon="magnifyingglass">Recherche</TabButton>
           </TabTrigger>

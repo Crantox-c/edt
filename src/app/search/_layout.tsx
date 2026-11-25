@@ -13,6 +13,7 @@ export default function SearchStackLayout() {
       <View style={styles.stackLayer}>
         <Stack
           screenOptions={{
+            headerShown: Platform.OS === "ios",
             headerLargeTitleEnabled: true,
             headerTransparent: Platform.OS === "ios",
             headerShadowVisible: false,

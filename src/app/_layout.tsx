@@ -27,6 +27,7 @@ import { StatusBar } from "expo-status-bar";
 
 import AppTabs from "@/components/app-tabs";
 import { boostLiquidGlassEdr } from "@/components/ui/edr-text";
+import { FiltersProvider } from "@/hooks/use-filters";
 import { ScheduleProvider } from "@/hooks/use-schedule";
 import { ThemeProvider, useTheme } from "@/hooks/use-theme";
 
@@ -80,9 +81,11 @@ export default function TabLayout() {
 
   return (
     <ThemeProvider>
-      <ScheduleProvider>
-        <RootNavigator />
-      </ScheduleProvider>
+      <FiltersProvider>
+        <ScheduleProvider>
+          <RootNavigator />
+        </ScheduleProvider>
+      </FiltersProvider>
     </ThemeProvider>
   );
 }

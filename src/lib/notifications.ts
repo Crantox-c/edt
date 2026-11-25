@@ -83,6 +83,19 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   }
 }
 
+export function parseMorningBriefingTime(value: string): {
+  hour: number;
+  minute: number;
+} {
+  const parts = String(value ?? "").trim().split(":");
+  const h = parts.length >= 1 && parts[0] !== "" ? Number(parts[0]) : NaN;
+  const m = parts.length >= 2 && parts[1] !== "" ? Number(parts[1]) : NaN;
+  return {
+    hour: Number.isInteger(h) && h >= 0 && h <= 23 ? h : 7,
+    minute: Number.isInteger(m) && m >= 0 && m <= 59 ? m : 30,
+  };
+}
+
 /**
  * Annule puis recrée les notifications locales à venir.
  * Règle AGENTS.md :
@@ -93,125 +106,144 @@ export async function scheduleAllNotifications(
   settings: NotificationSettings,
   now = Date.now()
 ): Promise<number> {
-  if (Platform.OS === "web" || !settings.enabled) {
-    try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
-    } catch {}
+  if (Platform.OS === "web") {
     return 0;
   }
 
   try {
+    if (!settings.enabled) {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      return 0;
+    }
+
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      return 0;
+    }
+
     // 1. Annulation préalable de toutes les notifications en attente
     await Notifications.cancelAllScheduledNotificationsAsync();
-
-    let scheduledCount = 0;
 
     // 2. Filtrer les cours futurs triés chronologiquement
     const upcomingCourses = courses
       .filter((c) => c.start > now)
       .sort((a, b) => a.start - b.start);
 
-    // 3. Programmation des résumés du matin (si activé)
-    if (settings.morningBriefingEnabled) {
-      const [hStr, mStr] = settings.morningBriefingTime.split(":");
-      const targetHour = Number(hStr) || 7;
-      const targetMinute = Number(mStr) || 30;
+    type NotificationCandidate = {
+      triggerMs: number;
+      priority: number;
+      content: Notifications.NotificationContentInput;
+    };
 
-      // Grouper les cours par date
+    const candidates: NotificationCandidate[] = [];
+
+    // 3. Collecter les résumés du matin (si activé)
+    if (settings.morningBriefingEnabled) {
+      const { hour: targetHour, minute: targetMinute } =
+        parseMorningBriefingTime(settings.morningBriefingTime);
+
       const daysMap = new Map<string, Course[]>();
       for (const c of upcomingCourses) {
         const dStr = getParisDateString(c.start);
-        if (!daysMap.has(dStr)) daysMap.set(dStr, []);
-        daysMap.get(dStr)!.push(c);
+        const list = daysMap.get(dStr);
+        if (list) list.push(c);
+        else daysMap.set(dStr, [c]);
       }
 
       for (const [dateStr, dayList] of daysMap.entries()) {
-        if (scheduledCount >= MAX_IOS_NOTIFICATIONS) break;
-
         const [y, m, d] = dateStr.split("-").map(Number);
         // Date du résumé du matin en heure exacte Europe/Paris (été/hiver gérés)
         const triggerMs = parisToEpoch(y, m, d, targetHour, targetMinute, 0);
-        const briefingDate = new Date(triggerMs);
 
-        if (triggerMs > now + 10000 && dayList.length > 0) {
+        if (triggerMs > now + 10_000 && dayList.length > 0) {
           const first = dayList[0];
           const firstRoom = first.room ?? "salle non communiquée";
           const teacherPart = first.teacher ? ` • ${first.teacher}` : "";
-          const courseWord = dayList.length === 1 ? "1 cours" : `${dayList.length} cours`;
+          const courseWord =
+            dayList.length === 1 ? "1 cours" : `${dayList.length} cours`;
 
-          await Notifications.scheduleNotificationAsync({
+          candidates.push({
+            triggerMs,
+            priority: 1,
             content: {
               title: "📅 Emploi du temps du jour",
               body: `${courseWord} aujourd'hui. 1er cours : ${first.title} à ${formatTime(first.start)} (${firstRoom}${teacherPart}).`,
               data: { type: "morning_briefing", date: dateStr },
             },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: briefingDate,
-            },
           });
-          scheduledCount++;
         }
       }
     }
 
-    // 4. Programmation des alertes veille de DS (si activé)
+    // 4. Collecter les alertes veille de DS (si activé)
     if (settings.dsSpecialAlert) {
       for (const course of upcomingCourses) {
-        if (scheduledCount >= MAX_IOS_NOTIFICATIONS) break;
+        if (!isCourseDS(course)) continue;
 
-        if (isCourseDS(course)) {
-          // La veille à 20h00 heure Europe/Paris
-          const courseDateStr = getParisDateString(course.start);
-          const eveDateStr = addDaysIso(courseDateStr, -1);
-          const [y, m, d] = eveDateStr.split("-").map(Number);
-          const triggerMs = parisToEpoch(y, m, d, 20, 0, 0);
-          const eveDate = new Date(triggerMs);
+        // La veille à 20h00 heure Europe/Paris
+        const courseDateStr = getParisDateString(course.start);
+        const eveDateStr = addDaysIso(courseDateStr, -1);
+        const [y, m, d] = eveDateStr.split("-").map(Number);
+        const triggerMs = parisToEpoch(y, m, d, 20, 0, 0);
 
-          if (triggerMs > now + 10000) {
-            const roomText = course.room ?? "salle non communiquée";
-            const teacherPart = course.teacher ? ` • ${course.teacher}` : "";
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: "📝 Rappel DS demain",
-                body: `${course.title} à ${formatTime(course.start)} en salle ${roomText}${teacherPart}.`,
-                data: { type: "ds_alert", courseKey: course.key },
-              },
-              trigger: {
-                type: Notifications.SchedulableTriggerInputTypes.DATE,
-                date: eveDate,
-              },
-            });
-            scheduledCount++;
-          }
+        if (triggerMs > now + 10_000) {
+          const roomText = course.room ?? "salle non communiquée";
+          const teacherPart = course.teacher ? ` • ${course.teacher}` : "";
+          candidates.push({
+            triggerMs,
+            priority: 0,
+            content: {
+              title: "📝 Rappel DS demain",
+              body: `${course.title} à ${formatTime(course.start)} en salle ${roomText}${teacherPart}.`,
+              data: { type: "ds_alert", courseKey: course.key },
+            },
+          });
         }
       }
     }
 
-    // 5. Programmation des rappels de cours
+    // 5. Collecter les rappels avant chaque cours
     for (const course of upcomingCourses) {
-      if (scheduledCount >= MAX_IOS_NOTIFICATIONS) break;
-
       const triggerMs = course.start - settings.leadTimeMinutes * 60 * 1000;
-      if (triggerMs > now + 5000) {
+      if (triggerMs > now + 5_000) {
         const roomText = course.room ?? "salle non communiquée";
         const teacherPart = course.teacher ? ` • ${course.teacher}` : "";
         const isDS = isCourseDS(course);
-        const prefix = isDS ? "📝 [DS] " : course.kind ? `[${course.kind}] ` : "";
+        const prefix = isDS
+          ? "📝 [DS] "
+          : course.kind
+            ? `[${course.kind}] `
+            : "";
 
-        await Notifications.scheduleNotificationAsync({
+        candidates.push({
+          triggerMs,
+          priority: 2,
           content: {
             title: `${prefix}${course.title}`,
             body: `Dans ${settings.leadTimeMinutes} min (${formatTime(course.start)}) • Salle : ${roomText}${teacherPart}`,
             data: { courseKey: course.key },
           },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: new Date(triggerMs),
-          },
         });
-        scheduledCount++;
       }
+    }
+
+    // 6. Trier chronologiquement avant d'appliquer le plafond iOS
+    candidates.sort(
+      (a, b) => a.triggerMs - b.triggerMs || a.priority - b.priority
+    );
+    const toSchedule = candidates.slice(0, MAX_IOS_NOTIFICATIONS);
+
+    let scheduledCount = 0;
+    for (const item of toSchedule) {
+      await Notifications.scheduleNotificationAsync({
+        content: item.content,
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(item.triggerMs),
+        },
+      });
+      scheduledCount++;
     }
 
     return scheduledCount;

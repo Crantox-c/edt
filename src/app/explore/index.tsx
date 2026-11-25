@@ -40,7 +40,11 @@ import {
 import { useSchedule } from "@/hooks/use-schedule";
 import { useTheme } from "@/hooks/use-theme";
 import { formatTime, formatTotalDuration } from "@/lib/dates";
-import { DEFAULT_API_BASE, isCourseDS } from "@/lib/geii-api";
+import {
+  DEFAULT_API_BASE,
+  isCourseDS,
+  validateApiBaseUrl,
+} from "@/lib/geii-api";
 import { haptics, useHapticsPreference } from "@/lib/haptics";
 import { MAX_IOS_NOTIFICATIONS } from "@/lib/notifications";
 import {
@@ -49,6 +53,7 @@ import {
   setSubjectCustomName,
   subscribeSubjectDictionary,
 } from "@/lib/subject-names";
+import { useQiblaTabPreference } from "@/lib/tab-preferences";
 import {
   getWidgetSyncStatusSnapshot,
   isWidgetsAvailable,
@@ -89,6 +94,7 @@ export default function SettingsScreen() {
     useReducedMotion();
   const { enabled: hapticsEnabled, setEnabled: setHapticsEnabled } =
     useHapticsPreference();
+  const { showQiblaTab, setShowQiblaTab } = useQiblaTabPreference();
   const accent = theme.accentTiers;
   const ambre = theme.ambre;
   const corail = theme.corail;
@@ -129,6 +135,7 @@ export default function SettingsScreen() {
   const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
   const [showAdvancedApi, setShowAdvancedApi] = useState(false);
   const [editedBaseUrl, setEditedBaseUrl] = useState<string | null>(null);
+  const [apiUrlError, setApiUrlError] = useState<string | null>(null);
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
 
@@ -176,6 +183,11 @@ export default function SettingsScreen() {
     if (next) {
       haptics.toggle();
     }
+  };
+
+  const handleToggleQiblaTab = (next: boolean) => {
+    haptics.toggle();
+    setShowQiblaTab(next);
   };
 
   const handleReschedule = async () => {
@@ -381,6 +393,38 @@ export default function SettingsScreen() {
                 thumbColor={theme.switchThumb}
               />
             </View>
+
+            <View
+              style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+            />
+
+            <View style={styles.switchRow}>
+              <View style={styles.switchInfo}>
+                <View style={styles.cardTitleRow}>
+                  <View style={[styles.iconBadge, { backgroundColor: accent.softBg }]}>
+                    <SymbolView
+                      name={{
+                        ios: "location.north.circle.fill",
+                        android: "explore",
+                        web: "explore",
+                      }}
+                      size={14}
+                      tintColor={accent.primary}
+                    />
+                  </View>
+                  <ThemedText type="smallBold">Onglet Qibla</ThemedText>
+                </View>
+                <ThemedText type="caption" themeColor="textSecondary">
+                  Afficher la boussole Qibla dans la barre d&apos;onglets
+                </ThemedText>
+              </View>
+              <Switch
+                value={showQiblaTab}
+                onValueChange={handleToggleQiblaTab}
+                trackColor={{ false: theme.border, true: accent.primary }}
+                thumbColor={theme.switchThumb}
+              />
+            </View>
           </View>
 
           {/* 2. Classe & Source GEII en direct */}
@@ -519,7 +563,10 @@ export default function SettingsScreen() {
                 </ThemedText>
                 <TextInput
                   value={baseUrlValue}
-                  onChangeText={setEditedBaseUrl}
+                  onChangeText={(text) => {
+                    setEditedBaseUrl(text);
+                    if (apiUrlError) setApiUrlError(null);
+                  }}
                   placeholder={DEFAULT_API_BASE}
                   placeholderTextColor={theme.textMuted}
                   autoCapitalize="none"
@@ -529,19 +576,30 @@ export default function SettingsScreen() {
                     {
                       color: theme.text,
                       backgroundColor: theme.cardBgSubtle,
-                      borderColor: theme.cardBorder,
+                      borderColor: apiUrlError ? corail[500] : theme.cardBorder,
                     },
                   ]}
                 />
+                {apiUrlError && (
+                  <ThemedText type="caption" style={{ color: corail[500] }}>
+                    {apiUrlError}
+                  </ThemedText>
+                )}
                 <GlassSurfaceContainer spacing={8} style={styles.actionRow}>
                   <GlassButton
                     haptic="soft"
                     tintColor={theme.backgroundSelected}
                     borderColor={theme.border}
                     onPress={() => {
-                      const target = baseUrlValue;
+                      const check = validateApiBaseUrl(baseUrlValue);
+                      if (!check.ok) {
+                        haptics.error();
+                        setApiUrlError(check.error);
+                        return;
+                      }
+                      setApiUrlError(null);
                       setEditedBaseUrl(null);
-                      void updateApiBaseUrl(target);
+                      void updateApiBaseUrl(check.normalized);
                     }}
                     containerStyle={styles.primaryBtnContainer}
                     style={styles.secondaryBtn}
@@ -556,6 +614,7 @@ export default function SettingsScreen() {
                     tintColor={theme.backgroundSelected}
                     borderColor={theme.border}
                     onPress={() => {
+                      setApiUrlError(null);
                       setEditedBaseUrl(null);
                       void updateApiBaseUrl(DEFAULT_API_BASE);
                     }}

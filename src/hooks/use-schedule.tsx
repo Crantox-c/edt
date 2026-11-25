@@ -9,8 +9,11 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import { useCurrentTime } from "@/hooks/use-current-time";
+import { useFiltersContext } from "@/hooks/use-filters";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useThemeContext } from "@/hooks/use-theme";
+import { extractAvailableFilters, filterCourses } from "@/lib/filters";
 import {
   Course,
   CourseChanges,
@@ -20,6 +23,7 @@ import {
   FALLBACK_FLAT_GROUPS,
   FlatGroup,
   PRELOAD_WEEK_OFFSETS,
+  STALE_AFTER_MS,
   addDaysIso,
   fetchAndMergeWeek,
   fetchGroups,
@@ -46,6 +50,7 @@ export type ScheduleContextValue = {
   activeGroup: FlatGroup;
   apiBaseUrl: string;
   courses: Course[];
+  filteredCourses: Course[];
   lastSync: number | null;
   isSyncing: boolean;
   loadingWeek: string | null;
@@ -75,6 +80,8 @@ function resolveGroupById(list: FlatGroup[], id: string): FlatGroup {
 export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const { theme, accentPreset } = useThemeContext();
   const isOled = theme.name === "oled";
+  const nowMs = useCurrentTime();
+  const { criteria, isLoaded: filtersLoaded } = useFiltersContext();
 
   const [groups, setGroups] = useState<FlatGroup[]>(FALLBACK_FLAT_GROUPS);
   const [activeGroupId, setActiveGroupId] = useState<string>(DEFAULT_GROUP_ID);
@@ -87,6 +94,19 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [changes, setChanges] = useState<CourseChanges>({ added: [], removed: [] });
 
+  const persistentCriteria = useMemo(
+    () => ({ ...criteria, searchQuery: "" }),
+    [criteria]
+  );
+  const availableFilters = useMemo(
+    () => extractAvailableFilters(courses),
+    [courses]
+  );
+  const effectiveCourses = useMemo(
+    () => filterCourses(courses, persistentCriteria, availableFilters),
+    [courses, persistentCriteria, availableFilters]
+  );
+
   const mountedRef = useRef(true);
   const initializedRef = useRef(false);
   const syncGenRef = useRef(0);
@@ -98,20 +118,22 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const inFlightMondaysRef = useRef<Set<string>>(new Set());
   const pendingWeekRef = useRef<string | null>(null);
   const latestWidgetInputsRef = useRef({
-    courses,
+    courses: effectiveCourses,
     lastSync,
     accentPreset,
     isOled,
+    filtersLoaded,
   });
 
   useEffect(() => {
     latestWidgetInputsRef.current = {
-      courses,
+      courses: effectiveCourses,
       lastSync,
       accentPreset,
       isOled,
+      filtersLoaded,
     };
-  }, [courses, lastSync, accentPreset, isOled]);
+  }, [effectiveCourses, lastSync, accentPreset, isOled, filtersLoaded]);
 
   const subjectDict = useSyncExternalStore(
     subscribeSubjectDictionary,
@@ -124,8 +146,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     [groups, activeGroupId]
   );
 
-  // Gestionnaire de notifications partagé sur la classe active
-  const notifications = useNotifications(courses);
+  // Gestionnaire de notifications partagé sur la classe active et les filtres persistants
+  const notifications = useNotifications(effectiveCourses);
 
   const ensureWeekLoadedInternal = useCallback(
     async (group: FlatGroup, baseUrl: string, mondayIso: string, gen: number) => {
@@ -306,7 +328,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
           });
         } else if (nextState === "background" && initializedRef.current) {
           const snapshot = latestWidgetInputsRef.current;
-          if (snapshot.courses.length > 0 || snapshot.lastSync !== null) {
+          if (
+            snapshot.filtersLoaded &&
+            (snapshot.courses.length > 0 || snapshot.lastSync !== null)
+          ) {
             void syncWidgetsFromSchedule(
               snapshot.courses,
               snapshot.lastSync,
@@ -399,15 +424,27 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     [syncGroup]
   );
 
-  // 3. Synchroniser les widgets iOS dès que les cours, le thème ou le dictionnaire changent
+  // 3. Synchroniser les widgets iOS dès que les cours filtrés, le thème ou le dictionnaire changent
   useEffect(() => {
-    if (courses.length === 0 && lastSync === null) return;
-    void syncWidgetsFromSchedule(courses, lastSync, accentPreset, isOled);
-  }, [courses, lastSync, accentPreset, isOled, subjectDict]);
+    if (!filtersLoaded) return;
+    if (effectiveCourses.length === 0 && lastSync === null) return;
+    void syncWidgetsFromSchedule(
+      effectiveCourses,
+      lastSync,
+      accentPreset,
+      isOled
+    );
+  }, [effectiveCourses, lastSync, accentPreset, isOled, subjectDict, filtersLoaded]);
 
   const refreshWidgets = useCallback(
-    () => syncWidgetsFromSchedule(courses, lastSync, accentPreset, isOled),
-    [courses, lastSync, accentPreset, isOled]
+    () =>
+      syncWidgetsFromSchedule(
+        effectiveCourses,
+        lastSync,
+        accentPreset,
+        isOled
+      ),
+    [effectiveCourses, lastSync, accentPreset, isOled]
   );
 
   const modifiedKeys = useMemo(() => {
@@ -416,19 +453,22 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     return set;
   }, [changes]);
 
+  const isStale = isSyncStale(lastSync, STALE_AFTER_MS, nowMs);
+
   const value = useMemo<ScheduleContextValue>(
     () => ({
       groups,
       activeGroup,
       apiBaseUrl,
       courses,
+      filteredCourses: effectiveCourses,
       lastSync,
       isSyncing,
       loadingWeek,
       error,
       changes,
       modifiedKeys,
-      isStale: isSyncStale(lastSync),
+      isStale,
       refresh,
       selectGroup,
       ensureWeekLoaded,
@@ -441,12 +481,14 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       activeGroup,
       apiBaseUrl,
       courses,
+      effectiveCourses,
       lastSync,
       isSyncing,
       loadingWeek,
       error,
       changes,
       modifiedKeys,
+      isStale,
       refresh,
       selectGroup,
       ensureWeekLoaded,
