@@ -40,6 +40,7 @@ import {
   syncGroupSchedule,
 } from "@/lib/geii-api";
 import { haptics } from "@/lib/haptics";
+import { syncScheduleIntents } from "@/lib/intents-sync";
 import {
   getSubjectDictionarySnapshot,
   subscribeSubjectDictionary,
@@ -64,6 +65,7 @@ export type ScheduleContextValue = {
   ensureWeekLoaded: (mondayIso: string) => Promise<void>;
   updateApiBaseUrl: (nextBaseUrl: string) => Promise<void>;
   refreshWidgets: () => Promise<boolean>;
+  refreshAppIntents: () => boolean;
   notifications: ReturnType<typeof useNotifications>;
   liveActivity: ReturnType<typeof useLiveActivity>;
 };
@@ -458,6 +460,27 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     [effectiveCourses, lastSync, accentPreset, isOled]
   );
 
+  // 4. Synchroniser le snapshot natif pour Siri & Raccourcis iOS
+  useEffect(() => {
+    if (!filtersLoaded) return;
+    if (effectiveCourses.length === 0 && lastSync === null) return;
+    syncScheduleIntents(effectiveCourses, activeGroup.text, lastSync);
+  }, [
+    effectiveCourses,
+    activeGroup.text,
+    lastSync,
+    subjectDict,
+    filtersLoaded,
+  ]);
+
+  const refreshAppIntents = useCallback(
+    () =>
+      syncScheduleIntents(effectiveCourses, activeGroup.text, lastSync, {
+        force: true,
+      }),
+    [effectiveCourses, activeGroup.text, lastSync]
+  );
+
   const modifiedKeys = useMemo(() => {
     const set = new Set<string>();
     changes.added.forEach((c) => set.add(c.key));
@@ -485,6 +508,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       ensureWeekLoaded,
       updateApiBaseUrl,
       refreshWidgets,
+      refreshAppIntents,
       notifications,
       liveActivity,
     }),
@@ -506,6 +530,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       ensureWeekLoaded,
       updateApiBaseUrl,
       refreshWidgets,
+      refreshAppIntents,
       notifications,
       liveActivity,
     ]

@@ -46,6 +46,12 @@ import {
   validateApiBaseUrl,
 } from "@/lib/geii-api";
 import { haptics, useHapticsPreference } from "@/lib/haptics";
+import {
+  getAppIntentsStatusSnapshot,
+  isAppIntentsAvailable,
+  openIosShortcutsApp,
+  subscribeAppIntentsStatus,
+} from "@/lib/intents-sync";
 import { LIVE_ACTIVITY_LEAD_TIMES } from "@/lib/live-activity-settings";
 import { MAX_IOS_NOTIFICATIONS } from "@/lib/notifications";
 import {
@@ -87,6 +93,25 @@ const WIDGET_SUMMARY_ITEMS = [
   },
 ] as const;
 
+const APP_INTENT_SUMMARY_ITEMS = [
+  {
+    title: "Prochain cours",
+    subtitle: "« Dis Siri, prochain cours dans EDT »",
+  },
+  {
+    title: "Heure du premier cours demain",
+    subtitle: "Renvoie une date exploitable pour régler votre réveil",
+  },
+  {
+    title: "Cours du jour",
+    subtitle: "Programme complet d'aujourd'hui ou de demain",
+  },
+  {
+    title: "Prochain DS",
+    subtitle: "Date, horaire et salle de la prochaine évaluation",
+  },
+] as const;
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -110,6 +135,7 @@ export default function SettingsScreen() {
     selectGroup,
     updateApiBaseUrl,
     refreshWidgets,
+    refreshAppIntents,
     notifications: {
       settings: notifSettings,
       permissionGranted,
@@ -133,6 +159,13 @@ export default function SettingsScreen() {
     getWidgetSyncStatusSnapshot
   );
   const widgetsReady = isWidgetsAvailable();
+
+  const intentsStatus = useSyncExternalStore(
+    subscribeAppIntentsStatus,
+    getAppIntentsStatusSnapshot,
+    getAppIntentsStatusSnapshot
+  );
+  const intentsReady = isAppIntentsAvailable();
 
   const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
   const [showAdvancedApi, setShowAdvancedApi] = useState(false);
@@ -218,6 +251,20 @@ export default function SettingsScreen() {
   const handleStopLiveActivity = async () => {
     haptics.selection();
     await liveActivity.stop();
+  };
+
+  const handleSyncAppIntents = () => {
+    const ok = refreshAppIntents();
+    if (ok) {
+      haptics.success();
+    } else {
+      haptics.soft();
+    }
+  };
+
+  const handleOpenShortcuts = () => {
+    haptics.soft();
+    openIosShortcutsApp();
   };
 
   const cardSurfaceStyle = {
@@ -1133,6 +1180,139 @@ export default function SettingsScreen() {
                     : "La Live Activity et la Dynamic Island utilisent ActivityKit iOS natif (non inclus dans Expo Go)."}
                 </ThemedText>
               </>
+            )}
+          </View>
+
+          {/* 4 ter. Siri & Raccourcis iOS (App Intents) */}
+          <View style={[styles.card, cardSurfaceStyle]}>
+            <View style={styles.cardHeaderBetween}>
+              <View style={styles.cardTitleRow}>
+                <View style={[styles.iconBadge, { backgroundColor: accent.softBg }]}>
+                  <SymbolView
+                    name={{
+                      ios: "waveform.circle.fill",
+                      android: "assistant",
+                      web: "assistant",
+                    }}
+                    size={15}
+                    tintColor={accent.primary}
+                  />
+                </View>
+                <ThemedText type="overline">Siri &amp; Raccourcis iOS</ThemedText>
+              </View>
+
+              <View
+                style={[
+                  styles.widgetStatusPill,
+                  {
+                    backgroundColor: intentsReady
+                      ? theme.menthe[100]
+                      : theme.ambre[100],
+                  },
+                ]}
+              >
+                <ThemedText
+                  type="captionBold"
+                  style={{
+                    color: intentsReady ? theme.menthe[700] : theme.ambre[700],
+                  }}
+                >
+                  {intentsReady ? "Prêt" : "Development build"}
+                </ThemedText>
+              </View>
+            </View>
+
+            <View style={styles.widgetList}>
+              {APP_INTENT_SUMMARY_ITEMS.map((item) => (
+                <View
+                  key={item.title}
+                  style={[
+                    styles.widgetItem,
+                    {
+                      backgroundColor: theme.cardBgSubtle,
+                      borderColor: theme.cardBorder,
+                    },
+                  ]}
+                >
+                  <ThemedText type="smallBold">{item.title}</ThemedText>
+                  <ThemedText type="caption" themeColor="textSecondary">
+                    {item.subtitle}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+
+            <View
+              style={[
+                styles.widgetItem,
+                {
+                  backgroundColor: accent.softBg,
+                  borderColor: accent.border,
+                },
+              ]}
+            >
+              <ThemedText type="captionBold" style={{ color: accent.text }}>
+                Astuce automatisation réveil
+              </ThemedText>
+              <ThemedText type="caption" themeColor="textSecondary">
+                Raccourcis → Automatisation chaque soir → « Heure du premier cours demain » (EDT) → Si a une valeur → Ajuster la date (−1 h) → Activer ou créer une alarme.
+              </ThemedText>
+            </View>
+
+            <GlassSurfaceContainer spacing={8} style={styles.actionRow}>
+              <GlassButton
+                haptic="none"
+                tintColor={theme.backgroundSelected}
+                borderColor={theme.border}
+                onPress={handleSyncAppIntents}
+                containerStyle={styles.primaryBtnContainer}
+                style={styles.secondaryBtn}
+              >
+                <ThemedText type="captionBold">
+                  Synchroniser Siri &amp; Raccourcis
+                </ThemedText>
+              </GlassButton>
+
+              {Platform.OS === "ios" && (
+                <GlassButton
+                  haptic="none"
+                  tintColor={accent.softBg}
+                  borderColor={accent.border}
+                  onPress={handleOpenShortcuts}
+                  style={styles.secondaryBtn}
+                >
+                  <ThemedText type="captionBold" style={{ color: accent.text }}>
+                    Ouvrir Raccourcis
+                  </ThemedText>
+                </GlassButton>
+              )}
+            </GlassSurfaceContainer>
+
+            {intentsStatus.lastSyncAt !== null && (
+              <ThemedText type="caption" themeColor="textSecondary">
+                Dernière mise à jour Siri : {formatTime(intentsStatus.lastSyncAt)} ·{" "}
+                {intentsStatus.courseCount}{" "}
+                {intentsStatus.courseCount > 1 ? "séances" : "séance"}
+              </ThemedText>
+            )}
+
+            {intentsStatus.lastError !== null && (
+              <View
+                style={[
+                  styles.permBanner,
+                  {
+                    backgroundColor: corail[100],
+                    borderColor: corail[500],
+                  },
+                ]}
+              >
+                <ThemedText
+                  type="captionBold"
+                  style={{ color: corail[700] }}
+                >
+                  Siri / Raccourcis : {intentsStatus.lastError}
+                </ThemedText>
+              </View>
             )}
           </View>
 

@@ -1,0 +1,6 @@
+{
+  "name": "schedule-intents",
+  "version": "1.0.0",
+  "description": "Native iOS bridge writing filtered schedule snapshots for App Intents (Siri & Shortcuts)",
+  "license": "MIT"
+}

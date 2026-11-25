@@ -112,7 +112,8 @@
           ]
         }
       ],
-      "./plugins/with-widgets-app-group-fix"
+      "./plugins/with-widgets-app-group-fix",
+      "./plugins/with-app-intents"
     ],
     "experiments": {
       "typedRoutes": true,
