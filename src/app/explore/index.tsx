@@ -14,6 +14,7 @@ import { ScrollViewMarker } from "react-native-screens/experimental";
 import { SymbolView } from "expo-symbols";
 
 import { AccentSwitcher } from "@/components/accent-switcher";
+import { ChangeHistoryModal } from "@/components/change-history-modal";
 import { ClassPickerModal } from "@/components/class-picker-modal";
 import {
   SegmentedControl,
@@ -131,6 +132,9 @@ export default function SettingsScreen() {
     apiBaseUrl,
     courses,
     isSyncing,
+    changeHistory,
+    unreadChangesCount,
+    hasUnreadUrgent,
     refresh,
     selectGroup,
     updateApiBaseUrl,
@@ -168,6 +172,7 @@ export default function SettingsScreen() {
   const intentsReady = isAppIntentsAvailable();
 
   const [isClassPickerOpen, setIsClassPickerOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [showAdvancedApi, setShowAdvancedApi] = useState(false);
   const [editedBaseUrl, setEditedBaseUrl] = useState<string | null>(null);
   const [apiUrlError, setApiUrlError] = useState<string | null>(null);
@@ -201,6 +206,11 @@ export default function SettingsScreen() {
   }, [courses]);
 
   const maxSubjectHours = subjectStats[0]?.hours || 1;
+
+  const totalHistoryItems = useMemo(
+    () => changeHistory.reduce((acc, batch) => acc + batch.items.length, 0),
+    [changeHistory]
+  );
 
   const handleAddSubjectMapping = () => {
     if (!newCode.trim() || !newName.trim()) {
@@ -600,6 +610,98 @@ export default function SettingsScreen() {
 
             <Pressable
               onPress={() => {
+                haptics.soft();
+                setIsHistoryModalOpen(true);
+              }}
+              style={[
+                styles.activeClassBox,
+                {
+                  backgroundColor: theme.cardBgSubtle,
+                  borderColor:
+                    unreadChangesCount > 0 && hasUnreadUrgent
+                      ? corail[300]
+                      : theme.cardBorder,
+                },
+              ]}
+            >
+              <View style={styles.cardTitleRow}>
+                <View
+                  style={[
+                    styles.iconBadge,
+                    {
+                      backgroundColor:
+                        unreadChangesCount > 0 && hasUnreadUrgent
+                          ? corail[100]
+                          : accent.softBg,
+                    },
+                  ]}
+                >
+                  <SymbolView
+                    name={{
+                      ios: "clock.arrow.circlepath",
+                      android: "history",
+                      web: "history",
+                    }}
+                    size={15}
+                    tintColor={
+                      unreadChangesCount > 0 && hasUnreadUrgent
+                        ? corail[500]
+                        : accent.primary
+                    }
+                  />
+                </View>
+                <View style={styles.switchInfo}>
+                  <ThemedText type="smallBold">
+                    Historique des changements
+                  </ThemedText>
+                  <ThemedText type="caption" themeColor="textSecondary">
+                    {unreadChangesCount > 0
+                      ? `${unreadChangesCount} non lu${unreadChangesCount > 1 ? "s" : ""}`
+                      : totalHistoryItems > 0
+                        ? `${totalHistoryItems} modification${totalHistoryItems > 1 ? "s" : ""} enregistrée${totalHistoryItems > 1 ? "s" : ""}`
+                        : "Aucune modification détectée"}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={styles.historyTrailingRow}>
+                {unreadChangesCount > 0 && (
+                  <View
+                    style={[
+                      styles.historyUnreadBadge,
+                      {
+                        backgroundColor: hasUnreadUrgent
+                          ? corail[500]
+                          : accent.solidBg,
+                      },
+                    ]}
+                  >
+                    <ThemedText
+                      type="captionBold"
+                      style={{ color: theme.textOnAccent }}
+                    >
+                      {unreadChangesCount}
+                    </ThemedText>
+                  </View>
+                )}
+                <SymbolView
+                  name={{
+                    ios: "chevron.right",
+                    android: "chevron_right",
+                    web: "chevron_right",
+                  }}
+                  size={13}
+                  tintColor={theme.textMuted}
+                />
+              </View>
+            </Pressable>
+
+            <View
+              style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+            />
+
+            <Pressable
+              onPress={() => {
                 haptics.selection();
                 setShowAdvancedApi((v) => !v);
               }}
@@ -838,6 +940,30 @@ export default function SettingsScreen() {
                     onValueChange={(v) => {
                       haptics.toggle();
                       updateNotifSettings({ dsSpecialAlert: v });
+                    }}
+                    trackColor={{ false: theme.border, true: accent.primary }}
+                    thumbColor={theme.switchThumb}
+                  />
+                </View>
+
+                <View
+                  style={[styles.divider, { backgroundColor: theme.borderSubtle }]}
+                />
+
+                <View style={styles.switchRow}>
+                  <View style={styles.switchInfo}>
+                    <ThemedText type="smallBold">
+                      Alerte changements (&lt; 48h)
+                    </ThemedText>
+                    <ThemedText type="caption" themeColor="textSecondary">
+                      Notification immédiate en cas de salle modifiée, cours déplacé ou annulé dans les 48 h
+                    </ThemedText>
+                  </View>
+                  <Switch
+                    value={notifSettings.changeAlert48h}
+                    onValueChange={(v) => {
+                      haptics.toggle();
+                      updateNotifSettings({ changeAlert48h: v });
                     }}
                     trackColor={{ false: theme.border, true: accent.primary }}
                     thumbColor={theme.switchThumb}
@@ -1506,6 +1632,11 @@ export default function SettingsScreen() {
           void selectGroup(groupId);
         }}
       />
+
+      <ChangeHistoryModal
+        visible={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+      />
     </View>
   );
 }
@@ -1594,6 +1725,20 @@ const styles = StyleSheet.create({
   activeClassInfo: {
     flex: 1,
     gap: 2,
+  },
+  historyTrailingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  historyUnreadBadge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: Radius.pill,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
   },
   advancedToggleRow: {
     flexDirection: "row",

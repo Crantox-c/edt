@@ -25,6 +25,7 @@ import { ScrollViewMarker } from "react-native-screens/experimental";
 import { SymbolView } from "expo-symbols";
 
 import { ActiveFilterPills } from "@/components/active-filter-pills";
+import { ChangeHistoryModal } from "@/components/change-history-modal";
 import { CourseDetailModal } from "@/components/course-detail-modal";
 import { DayView } from "@/components/day-view";
 import { FilterModal } from "@/components/filter-modal";
@@ -55,6 +56,7 @@ import { useTheme } from "@/hooks/use-theme";
 import {
   formatMonthYear,
   getMondayOfWeek,
+  getParisDateString,
   getTodayParisDateString,
 } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
@@ -104,6 +106,8 @@ export default function HomeScreen() {
     isSyncing,
     loadingWeek,
     error,
+    unreadChangesCount,
+    hasUnreadUrgent,
     modifiedKeys,
     isStale,
     refresh,
@@ -128,6 +132,7 @@ export default function HomeScreen() {
   );
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [syncSeq, setSyncSeq] = useState(0);
   const [hiddenSyncKey, setHiddenSyncKey] = useState<string | null>(null);
 
@@ -484,6 +489,66 @@ export default function HomeScreen() {
               </ThemedText>
             </Animated.View>
           )}
+
+          {unreadChangesCount > 0 && (
+            <Animated.View
+              entering={isReduced ? undefined : FadeIn.duration(220)}
+              exiting={isReduced ? undefined : FadeOut.duration(220)}
+              layout={isReduced ? undefined : LinearTransition.duration(260)}
+            >
+              <Pressable
+                onPress={() => {
+                  haptics.soft();
+                  setIsHistoryModalOpen(true);
+                }}
+                style={({ pressed }) => [
+                  styles.banner,
+                  {
+                    backgroundColor: hasUnreadUrgent
+                      ? corail[100]
+                      : accent.softBg,
+                    borderColor: hasUnreadUrgent
+                      ? corail[300]
+                      : accent.border,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <SymbolView
+                  name={{
+                    ios: "bell.badge.fill",
+                    android: "notifications_active",
+                    web: "notifications_active",
+                  }}
+                  size={14}
+                  tintColor={hasUnreadUrgent ? corail[700] : accent.primary}
+                />
+                <ThemedText
+                  type="captionBold"
+                  style={[
+                    styles.errorBannerText,
+                    { color: hasUnreadUrgent ? corail[700] : accent.text },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {unreadChangesCount}{" "}
+                  {unreadChangesCount > 1
+                    ? "modifications d'EDT"
+                    : "modification d'EDT"}
+                  {hasUnreadUrgent ? " (< 48h)" : ""} · Voir le détail
+                </ThemedText>
+                <SymbolView
+                  name={{
+                    ios: "chevron.right",
+                    android: "chevron_right",
+                    web: "chevron_right",
+                  }}
+                  size={12}
+                  tintColor={hasUnreadUrgent ? corail[700] : accent.text}
+                />
+              </Pressable>
+            </Animated.View>
+          )}
         </View>
 
         {/* Pilules des filtres actifs */}
@@ -630,6 +695,20 @@ export default function HomeScreen() {
         onUpdateCriteria={updateCriteria}
         onToggleHiddenSubject={toggleHiddenSubject}
         onResetFilters={resetFilters}
+      />
+
+      {/* Journal détaillé des changements d'EDT */}
+      <ChangeHistoryModal
+        visible={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        onSelectCourse={(courseKey) => {
+          const found = courses.find((c) => c.key === courseKey);
+          setIsHistoryModalOpen(false);
+          if (found) {
+            handleSelectDate(getParisDateString(found.start));
+            setActiveCourse(found);
+          }
+        }}
       />
     </View>
   );

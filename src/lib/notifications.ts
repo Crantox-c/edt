@@ -1,6 +1,10 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  formatChangeItemSummary,
+  type ScheduleChangeItem,
+} from "./change-history";
 import { formatTime, getParisDateString } from "./dates";
 import { Course, addDaysIso, isCourseDS, parisToEpoch } from "./geii-api";
 
@@ -20,6 +24,7 @@ export type NotificationSettings = {
   morningBriefingEnabled: boolean; // Résumé du matin
   morningBriefingTime: string;   // Heure du résumé "HH:mm" (ex: "07:30")
   dsSpecialAlert: boolean;       // Alerte veille de DS
+  changeAlert48h: boolean;       // Alerte immédiate sur changement < 48h
 };
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -28,6 +33,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   morningBriefingEnabled: true,
   morningBriefingTime: "07:30",
   dsSpecialAlert: true,
+  changeAlert48h: true,
 };
 
 const SETTINGS_STORAGE_KEY = "app:notification_settings_v1";
@@ -250,5 +256,64 @@ export async function scheduleAllNotifications(
   } catch (e) {
     console.warn("Erreur programmation des notifications:", e);
     return 0;
+  }
+}
+
+/**
+ * Envoie une notification locale immédiate lorsqu'une ou plusieurs séances
+ * dans les 48 prochaines heures ont été modifiées, ajoutées ou annulées.
+ * N'utilise pas de déclencheur différé et n'entame donc pas le quota des 50 notifications futures.
+ */
+export async function notifyUrgentScheduleChanges(
+  urgentItems: ScheduleChangeItem[],
+  settings: NotificationSettings,
+  subjectDict: Record<string, string>
+): Promise<boolean> {
+  if (
+    Platform.OS === "web" ||
+    !settings.enabled ||
+    !settings.changeAlert48h ||
+    urgentItems.length === 0
+  ) {
+    return false;
+  }
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") {
+      return false;
+    }
+
+    const first = urgentItems[0];
+    const summary = formatChangeItemSummary(first, subjectDict);
+
+    const title =
+      urgentItems.length === 1
+        ? "⚠️ Changement d'EDT (< 48h)"
+        : `⚠️ ${urgentItems.length} changements d'EDT (< 48h)`;
+
+    const extraCount = urgentItems.length - 1;
+    const body =
+      extraCount > 0
+        ? `${summary.badgeLabel} : ${summary.headline} (${summary.detail}) + ${extraCount} autre${extraCount > 1 ? "s" : ""} modification${extraCount > 1 ? "s" : ""}.`
+        : `${summary.badgeLabel} : ${summary.headline} — ${summary.detail}.`;
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: {
+          type: "schedule_change_48h",
+          count: urgentItems.length,
+          courseKey: first.courseKey,
+        },
+      },
+      trigger: null,
+    });
+
+    return true;
+  } catch (e) {
+    console.warn("Erreur notification changement EDT < 48h:", e);
+    return false;
   }
 }

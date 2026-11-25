@@ -42,6 +42,17 @@ import {
 import { haptics } from "@/lib/haptics";
 import { syncScheduleIntents } from "@/lib/intents-sync";
 import {
+  type ScheduleChangeBatch,
+  appendChangeBatch,
+  clearChangeHistory,
+  countUnreadChanges,
+  getUrgent48hChanges,
+  hasUnreadUrgentChanges,
+  loadChangeHistory,
+  markChangeHistoryRead,
+} from "@/lib/change-history";
+import { notifyUrgentScheduleChanges } from "@/lib/notifications";
+import {
   getSubjectDictionarySnapshot,
   subscribeSubjectDictionary,
 } from "@/lib/subject-names";
@@ -58,6 +69,9 @@ export type ScheduleContextValue = {
   loadingWeek: string | null;
   error: string | null;
   changes: CourseChanges;
+  changeHistory: ScheduleChangeBatch[];
+  unreadChangesCount: number;
+  hasUnreadUrgent: boolean;
   modifiedKeys: Set<string>;
   isStale: boolean;
   refresh: () => Promise<void>;
@@ -66,6 +80,8 @@ export type ScheduleContextValue = {
   updateApiBaseUrl: (nextBaseUrl: string) => Promise<void>;
   refreshWidgets: () => Promise<boolean>;
   refreshAppIntents: () => boolean;
+  markChangesRead: () => Promise<void>;
+  clearChangesHistory: () => Promise<void>;
   notifications: ReturnType<typeof useNotifications>;
   liveActivity: ReturnType<typeof useLiveActivity>;
 };
@@ -97,6 +113,7 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
   const [loadingWeek, setLoadingWeek] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [changes, setChanges] = useState<CourseChanges>({ added: [], removed: [] });
+  const [changeHistory, setChangeHistory] = useState<ScheduleChangeBatch[]>([]);
 
   const persistentCriteria = useMemo(
     () => ({ ...criteria, searchQuery: "" }),
@@ -145,6 +162,13 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     getSubjectDictionarySnapshot
   );
 
+  const persistentCriteriaRef = useRef(persistentCriteria);
+  const subjectDictRef = useRef(subjectDict);
+  useEffect(() => {
+    persistentCriteriaRef.current = persistentCriteria;
+    subjectDictRef.current = subjectDict;
+  }, [persistentCriteria, subjectDict]);
+
   const activeGroup = useMemo(
     () => resolveGroupById(groups, activeGroupId),
     [groups, activeGroupId]
@@ -152,6 +176,10 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
 
   // Gestionnaire de notifications partagé sur la classe active et les filtres persistants
   const notifications = useNotifications(effectiveCourses);
+  const notifSettingsRef = useRef(notifications.settings);
+  useEffect(() => {
+    notifSettingsRef.current = notifications.settings;
+  }, [notifications.settings]);
 
   // Gestionnaire de Live Activity & Dynamic Island (iOS)
   const liveActivity = useLiveActivity({
@@ -244,6 +272,35 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
         setChanges(result.changes);
         setError(result.error ?? null);
 
+        if (result.changes.added.length > 0 || result.changes.removed.length > 0) {
+          const hiddenSet = new Set(persistentCriteriaRef.current.hiddenSubjects);
+          const filteredDiff: CourseChanges = {
+            added: result.changes.added.filter((c) => !hiddenSet.has(c.subject)),
+            removed: result.changes.removed.filter((c) => !hiddenSet.has(c.subject)),
+          };
+          if (filteredDiff.added.length > 0 || filteredDiff.removed.length > 0) {
+            const { history, newBatch } = await appendChangeBatch(
+              group.id,
+              filteredDiff
+            );
+            if (
+              mountedRef.current &&
+              syncGenRef.current === gen &&
+              activeGroupIdRef.current === group.id
+            ) {
+              setChangeHistory(history);
+            }
+            const urgent = getUrgent48hChanges(newBatch);
+            if (urgent.length > 0) {
+              void notifyUrgentScheduleChanges(
+                urgent,
+                notifSettingsRef.current,
+                subjectDictRef.current
+              );
+            }
+          }
+        }
+
         if (notifyHaptics) {
           if (result.error) haptics.error();
           else haptics.success();
@@ -300,11 +357,15 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       setActiveGroupId(initialGroup.id);
       setApiBaseUrl(savedBaseUrl);
 
-      const cachedEvents = await loadCachedGroupEvents(initialGroup.id);
+      const [cachedEvents, cachedHistory] = await Promise.all([
+        loadCachedGroupEvents(initialGroup.id),
+        loadChangeHistory(initialGroup.id),
+      ]);
       if (!mountedRef.current) return;
 
       loadedMondaysRef.current = new Set(cachedEvents.loadedMondays);
       initializedRef.current = true;
+      setChangeHistory(cachedHistory);
 
       if (cachedEvents.courses.length > 0) {
         setCourses(cachedEvents.courses);
@@ -382,15 +443,20 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       setActiveGroupId(nextGroup.id);
       setError(null);
       setChanges({ added: [], removed: [] });
+      setChangeHistory([]);
       setLoadingWeek(null);
       await saveSelectedGroupId(nextGroup.id);
 
-      const cached = await loadCachedGroupEvents(nextGroup.id);
+      const [cached, groupHistory] = await Promise.all([
+        loadCachedGroupEvents(nextGroup.id),
+        loadChangeHistory(nextGroup.id),
+      ]);
       if (!mountedRef.current || syncGenRef.current !== gen) return;
 
       loadedMondaysRef.current = new Set(cached.loadedMondays);
       setCourses(cached.courses);
       setLastSync(cached.lastSync);
+      setChangeHistory(groupHistory);
       setIsSyncing(cached.courses.length === 0);
 
       await syncGroup(nextGroup, apiBaseUrlRef.current, {
@@ -481,11 +547,46 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
     [effectiveCourses, activeGroup.text, lastSync]
   );
 
+  const markChangesRead = useCallback(async () => {
+    const groupId = activeGroupIdRef.current;
+    const nextHistory = await markChangeHistoryRead(groupId);
+    if (mountedRef.current && activeGroupIdRef.current === groupId) {
+      setChangeHistory(nextHistory);
+    }
+  }, []);
+
+  const clearChangesHistory = useCallback(async () => {
+    const groupId = activeGroupIdRef.current;
+    await clearChangeHistory(groupId);
+    if (mountedRef.current && activeGroupIdRef.current === groupId) {
+      setChangeHistory([]);
+      setChanges({ added: [], removed: [] });
+    }
+  }, []);
+
+  const unreadChangesCount = useMemo(
+    () => countUnreadChanges(changeHistory),
+    [changeHistory]
+  );
+
+  const hasUnreadUrgent = useMemo(
+    () => hasUnreadUrgentChanges(changeHistory),
+    [changeHistory]
+  );
+
   const modifiedKeys = useMemo(() => {
     const set = new Set<string>();
     changes.added.forEach((c) => set.add(c.key));
+    for (const batch of changeHistory) {
+      if (!batch.unread) continue;
+      for (const item of batch.items) {
+        if (item.kind !== "removed") {
+          set.add(item.courseKey);
+        }
+      }
+    }
     return set;
-  }, [changes]);
+  }, [changes, changeHistory]);
 
   const isStale = isSyncStale(lastSync, STALE_AFTER_MS, nowMs);
 
@@ -501,6 +602,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       loadingWeek,
       error,
       changes,
+      changeHistory,
+      unreadChangesCount,
+      hasUnreadUrgent,
       modifiedKeys,
       isStale,
       refresh,
@@ -509,6 +613,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       updateApiBaseUrl,
       refreshWidgets,
       refreshAppIntents,
+      markChangesRead,
+      clearChangesHistory,
       notifications,
       liveActivity,
     }),
@@ -523,6 +629,9 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       loadingWeek,
       error,
       changes,
+      changeHistory,
+      unreadChangesCount,
+      hasUnreadUrgent,
       modifiedKeys,
       isStale,
       refresh,
@@ -531,6 +640,8 @@ export function ScheduleProvider({ children }: { children: React.ReactNode }) {
       updateApiBaseUrl,
       refreshWidgets,
       refreshAppIntents,
+      markChangesRead,
+      clearChangesHistory,
       notifications,
       liveActivity,
     ]
